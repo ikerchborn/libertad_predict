@@ -211,7 +211,7 @@ La API corre por defecto en `http://127.0.0.1:8000` con documentación OpenAPI i
 ## 7. Estructura del Proyecto
 
 ```text
-sql-caido-rescube/
+lalibertad_predict/
 ├── config/
 │   ├── classification.yaml          # Reglas OSM -> PlaceKind (4 tipos)
 │   ├── events.yaml                  # Calendario de festividades y aglomeración
@@ -244,39 +244,48 @@ sql-caido-rescube/
 
 ---
 
-## 7. Planificador de Viajes Multi-Día (Estilo Wanderlog + Transporte Público OMUS)
+## 8. Planificador de Viajes Multi-Día (Transporte Público OMUS)
 
 El portal principal (`/`) implementa un planificador de viajes de vanguardia que elimina el desorden de listas estáticas de destinos y permite crear itinerarios multi-día interactivos:
 
 ```mermaid
 flowchart TD
-    A["Pantalla de Bienvenida\n(Destino + Fechas + Viajeros)"] -->|"Comienza a planificar"| B["Dashboard de Itinerario\n(Banner + Explorar + Presupuesto + Notas)"]
-    B --> C["Buscador Autocomplete & Carrusel\n(Añadir paradas a Día 1, Día 2...)"]
-    C --> D["Motor de Transporte Público OMUS\n(Micros Línea B, Combis Línea S, tarifas y paraderos)"]
-    D --> E["Optimización de Recorrido 2-Opt\n(Eliminación de cruces y cálculo OSRM)"]
-    E --> F["Mapa Interactivo Territorial OSM\n(Polilínea turquesa y pines numerados #1, #2, #3)"]
+    A["Pantalla de Bienvenida\n(Destino + Fechas)"] -->|"Comienza a planificar"| B["Dashboard de Itinerario\n(Resumen + Servicios + Presupuesto + Notas)"]
+    B --> C["Servicios\n(Hoteles, Actividades y Comida)"]
+    B --> D["Itinerario por fecha\n(Primeros 5 días automáticos)"]
+    D -->|"Viajes de más de 5 días"| E["Añadir día y elegir fecha\n(Orden cronológico)"]
+    E --> F["Buscador de lugares\n(Añadir paradas al día seleccionado)"]
+    F --> G["Motor de Transporte Público OMUS\n(Micros Línea B, Combis Línea S, tarifas y paraderos)"]
+    G --> H["Optimización de Recorrido 2-Opt\n(Disponible en el panel de ruta)"]
+    H --> I["Mapa Interactivo Territorial OSM\n(Polilínea y paradas numeradas)"]
 ```
 
 ### Características Principales:
-1. **Flujo de Entrada Limpio:** No abruma al usuario con cientos de tarjetas; inicia con un formulario de destino (`¿A dónde?`), selección de fechas y creación del viaje.
-2. **Conexiones Reales de Transporte Masivo (GTFS Trujillo-OMUS):**
+1. **Flujo de Entrada Limpio:** Inicia con un formulario de destino (`¿A dónde?`), selección de fechas y creación del viaje. El dashboard no repite tarjetas promocionales de categorías.
+2. **Itinerario por fecha:** Al definir un viaje se crea un día para cada una de sus primeras cinco fechas. Para viajes más largos, el usuario añade los días restantes seleccionando su fecha; los días se ordenan cronológicamente. Las fechas y paradas se conservan en el almacenamiento local del navegador.
+3. **Pronóstico ligado al itinerario:** La fecha de clima y oleaje sigue el día seleccionado y no se cambia desde el panel del pronóstico.
+4. **Accesos limpios a servicios:** La sección de accesos rápidos contiene únicamente Hoteles, Actividades y Comida. La optimización de ruta continúa disponible en su panel del itinerario.
+5. **Conexiones Reales de Transporte Masivo (GTFS Trujillo-OMUS):**
    * Entre parada y parada (ej. Plaza Mayor &rarr; Balneario de Huanchaco), el sistema consulta la base local de 125 rutas de transporte de Trujillo (`prueva_maps/Trujillo-OMUS/data.json`).
    * Despliega la tarjeta de trasbordo con:
      * Nombre y código de la línea: ej. `Microbús Línea B ("La B de Huanchaco") [M-06 B]` o `Combi Línea S ("La S de Sol y Luna") [C-14 S]`.
      * Tarifa exacta en soles: `S/ 2.50` (o `Gratis` en tramos a pie).
      * Tiempo estimado en minutos.
      * Paraderos de subida y bajada con instrucciones de abordaje.
-3. **Cálculo de Presupuesto en Tiempo Real:** El widget de presupuesto suma de forma dinámica el gasto exacto en pasajes del día planificado.
-4. **Optimización de Rutas (2-Opt / Nearest-Neighbour):** Algoritmo local que reordena las paradas para minimizar la distancia kilométrica y el tiempo en ruta, conectándose a la geometría de calles mediante el motor OSRM.
-5. **Persistencia Local Inmutable:** Persiste el estado del viaje, notas del viajero, paradas y hotel ancla en `localStorage` / caché local del navegador sin sobrecargar la base de datos central.
+6. **Cálculo de Presupuesto en Tiempo Real:** El widget suma el costo estimado del transporte para el día seleccionado.
+7. **Optimización de Rutas (2-Opt / Nearest-Neighbour):** El control del panel de ruta reordena las paradas para reducir la distancia estimada.
+8. **Persistencia Local:** Conserva viajes, fechas, notas, paradas y hotel ancla en `localStorage`, sin sobrecargar la base de datos central. Las notas se guardan automáticamente en el viaje activo y la interfaz confirma si el guardado tuvo éxito.
 
 ---
 
-## 8. Guía de Ejecución y Comandos CLI
+## 9. Guía de Ejecución y Comandos CLI
 
 ### Backend (Python 3.11+ / FastAPI)
 
 ```powershell
+# Instalar el proyecto en modo editable y sus herramientas de desarrollo
+.venv\Scripts\python -m pip install -e ".[dev]"
+
 # 1. Aplicar migraciones de base de datos
 .venv\Scripts\python -m turismo migrate
 
@@ -313,16 +322,16 @@ npm run start -- -p 3000
 ### Verificación de Calidad y Tests
 
 ```powershell
-# Linter y formato con Ruff (0 errores)
-.venv\Scripts\ruff check src/ tests/
-
-# Verificación de tipos estricta con Mypy (31 módulos verificados)
-.venv\Scripts\mypy --strict src/ tests/
-
-# Batería de pruebas unitarias e integración con Pytest (62 pruebas)
+# Backend: ejecutar desde la raíz del repositorio
 .venv\Scripts\python -m pytest
+.venv\Scripts\ruff check src/ tests/
+.venv\Scripts\python -m mypy --strict src tests
 
-# Compilación y chequeo de tipos de Frontend
+# Frontend: ejecutar desde la raíz del repositorio
+npm --prefix frontend run lint
 npm --prefix frontend run build
 ```
-# libertad_predict
+
+El backend cuenta con pruebas unitarias y de integración en `tests/`. En el frontend, ESLint y la compilación de Next.js son las verificaciones automatizadas disponibles; `frontend/package.json` no define un script `test`.
+
+Si se mueve o copia el repositorio a otra ruta, reinstala el paquete Python en modo editable desde la nueva raíz (`.venv\Scripts\python -m pip install -e ".[dev]"`) para actualizar la ruta de importación usada por el entorno virtual.

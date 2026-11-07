@@ -5932,32 +5932,7 @@
       "safety_score": 41.3,
       "source": "verified_offline_catalog"
     },
-    {
-      "place_id": 314,
-      "name": "Liga de Artesanos",
-      "kind": "attraction",
-      "lat": -8.1076585,
-      "lon": -79.0255652,
-      "google_place_id": null,
-      "stars": 4.4,
-      "external_rating": 4.4,
-      "user_rating_count": 73,
-      "website": null,
-      "phone": "+51 44 200086",
-      "address": null,
-      "opening_hours": null,
-      "cuisine": null,
-      "price_level": null,
-      "price_min": null,
-      "price_max": null,
-      "currency": "PEN",
-      "menu_url": null,
-      "maps_url": "https://www.google.com/maps/search/?api=1&query=Liga+de+Artesanos+-8.107658,-79.025565",
-      "image_url": "/images/places/place_314.webp",
-      "local_image_path": "frontend/public/images/places/place_314.webp",
-      "safety_score": 43.5,
-      "source": "verified_offline_catalog"
-    },
+   
     {
       "place_id": 343,
       "name": "Huaca arcoiris",

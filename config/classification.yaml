@@ -1,0 +1,55 @@
+version: "1.0"
+
+# Declarative classification rules based on OpenStreetMap tags
+# Evaluated in top-to-bottom order. If no rule matches, kind is 'unclassified'.
+rules:
+  - kind: attraction
+    match:
+      tourism:
+        - attraction
+        - museum
+        - viewpoint
+        - theme_park
+        - zoo
+        - artwork
+        - monument
+      historic:
+        - "*"
+      amenity:
+        - place_of_worship
+
+  - kind: lodging
+    match:
+      tourism:
+        - hotel
+        - hostel
+        - guest_house
+        - motel
+        - apartment
+        - resort
+        - chalet
+
+  - kind: food
+    match:
+      amenity:
+        - restaurant
+        - cafe
+        - fast_food
+        - food_court
+        - bar
+        - pub
+        - ice_cream
+
+  - kind: activity
+    match:
+      sport:
+        - surf
+        - diving
+        - swimming
+        - climbing
+      leisure:
+        - water_park
+        - sports_centre
+        - fitness_centre
+      tourism:
+        - information # tour operators / visitor info

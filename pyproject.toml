@@ -1,0 +1,78 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "turismo-la-libertad"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "sqlalchemy>=2.0,<3.0",       # ORM + async support
+    "alembic>=1.13,<2.0",         # DB migrations
+    "pydantic>=2.7,<3.0",         # Domain validation + settings
+    "pydantic-settings>=2.3,<3.0",# Config from env vars
+    "httpx>=0.27,<1.0",           # Single shared HTTP client
+    "fastapi>=0.111,<1.0",        # REST API
+    "uvicorn[standard]>=0.30,<1.0",# ASGI server
+    "apscheduler>=3.10,<4.0",     # Job scheduler
+    "pandas>=2.2,<3.0",           # MINCETUR XLSX parsing
+    "openpyxl>=3.1,<4.0",         # pandas Excel engine
+    "pyyaml>=6.0,<7.0",           # config/weights.yaml, config/events.yaml
+    "slowapi>=0.1.9,<1.0",        # FastAPI rate limiting
+    "tenacity>=8.3,<9.0",         # Retry with backoff+jitter
+    "structlog>=24.1,<25.0",      # Structured logging
+    "aiofiles>=23.2,<25.0",       # async file I/O for robots.txt cache
+    "pillow>=10.0,<12.0",         # Image compression / webp
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3,<10.0",
+    "pytest-asyncio>=1.4.0,<2.0",
+    "pytest-cov>=5.0,<8.0",
+    "mypy>=1.10,<2.0",
+    "ruff>=0.4,<1.0",
+    "bandit[toml]>=1.7,<2.0",
+    "pip-audit>=2.7,<3.0",
+    "types-pyyaml>=6.0,<7.0",
+    "types-aiofiles>=23.2,<25.0",
+    "types-python-dateutil>=2.9.0",
+    "pandas-stubs>=2.2.0",
+]
+
+[project.scripts]
+turismo = "turismo.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+# src layout: package lives in src/turismo, not in a directory named after the project
+packages = ["src/turismo"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "RET", "SIM", "PTH", "ERA"]
+ignore = ["S101", "B008"]  # allow assert in tests and Depends/Query in FastAPI endpoints
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+exclude = ["migrations/"]
+
+[[tool.mypy.overrides]]
+module = "apscheduler.*"
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:slowapi.*",
+]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+skips = ["B101"]  # allow assert

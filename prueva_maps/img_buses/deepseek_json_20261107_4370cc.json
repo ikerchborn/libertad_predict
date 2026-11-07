@@ -1,0 +1,117 @@
+{
+  "outputDir": "public/images/transport",
+  "config": {
+    "format": "webp",
+    "quality": 80,
+    "maxWidth": 800,
+    "maxHeight": 600,
+    "delayMs": 400
+  },
+  "images": [
+    {
+      "id": "chicama-premium",
+      "name": "Chicama Premium",
+      "type": "Bus interprovincial",
+      "url": "https://s1.rdbuz.com/bo-images/PER/WM/30829/9/SI/ML/webp/iBBcgN.webp",
+      "fallbackColor": "#c0392b"
+    },
+    {
+      "id": "el-dorado",
+      "name": "Buses El Dorado",
+      "type": "Bus interprovincial",
+      "url": "https://expresodorado.com.pe/assets/img/home/imagen-0.jpg",
+      "fallbackColor": "#f1c40f"
+    },
+    {
+      "id": "ecotur",
+      "name": "Ecotur",
+      "type": "Bus interprovincial",
+      "url": "https://s1.rdbuz.com/bo-images/PER/WM/18169/9/FR/ML/webp/vffS4d.webp",
+      "fallbackColor": "#27ae60"
+    },
+    {
+      "id": "tunesa",
+      "name": "Tunesa",
+      "type": "Bus interprovincial",
+      "url": "https://s1.rdbuz.com/bo-images/PER/WM/30829/9/SI/ML/webp/iBBcgN.webp",
+      "fallbackColor": "#2980b9"
+    },
+    {
+      "id": "levitur",
+      "name": "Levitur",
+      "type": "Bus interprovincial",
+      "url": "https://s1.rdbuz.com/bo-images/PER/WM/18169/9/FR/ML/webp/vffS4d.webp",
+      "fallbackColor": "#8e44ad"
+    },
+    {
+      "id": "colectivos-ascope",
+      "name": "Colectivos Chocope–Magdalena de Cao",
+      "type": "Colectivo interurbano",
+      "url": "https://elperuano.pe/suplementosflipping/lonuestro/275/web/img/foto14.jpg",
+      "fallbackColor": "#7f8c8d"
+    },
+    {
+      "id": "mototaxis-magdalena-cao",
+      "name": "Mototaxis Magdalena de Cao",
+      "type": "Mototaxi local",
+      "url": "https://cde.canaln.pe/actualidad-municipalidad-magdalena-lanza-motocuy-app-viajar-seguros-mototaxi-n470485-696x418-1028323.jpg",
+      "fallbackColor": "#e67e22"
+    },
+    {
+      "id": "ethsa-linea-b",
+      "name": "ETHSA - Línea B de Huanchaco",
+      "type": "Microbús urbano",
+      "url": "http://viajeenbus.com/wp-content/uploads/2014/11/Empresa-de-Transportes-Huanchaco.jpg",
+      "fallbackColor": "#f39c12"
+    },
+    {
+      "id": "caballito-de-totora-c27b",
+      "name": "Caballito de Totora - Combi C-27 B",
+      "type": "Combi urbana",
+      "url": "https://sientetrujillo.com/wp-content/uploads/2023/09/personas-con-discapacidad-severa-e1694622242495.jpg",
+      "fallbackColor": "#16a085"
+    },
+    {
+      "id": "lineas-huanchaco",
+      "name": "Líneas urbanas Trujillo–Huanchaco",
+      "type": "Combi / Microbús urbano",
+      "url": "http://viajeenbus.com/wp-content/uploads/2014/11/Empresa-de-Transportes-Huanchaco.jpg",
+      "fallbackColor": "#d35400"
+    },
+    {
+      "id": "lineas-chan-chan",
+      "name": "Líneas urbanas Trujillo–Chan Chan",
+      "type": "Microbús urbano",
+      "url": "https://toursentrujillo.com/wp-content/uploads/2021/06/mirabus.jpg",
+      "fallbackColor": "#c0392b"
+    },
+    {
+      "id": "combi-c14s-moche",
+      "name": "Combi C-14 S - Sol y Luna (Moche)",
+      "type": "Combi urbana",
+      "url": "https://i.ytimg.com/vi/1dCPAuYq6XE/maxresdefault.jpg",
+      "fallbackColor": "#2c3e50"
+    },
+    {
+      "id": "lineas-chocope",
+      "name": "Líneas Trujillo–Chocope / Ascope",
+      "type": "Bus interurbano",
+      "url": "https://elperuano.pe/suplementosflipping/lonuestro/275/web/img/foto14.jpg",
+      "fallbackColor": "#34495e"
+    },
+    {
+      "id": "lineas-pacasmayo",
+      "name": "Líneas Trujillo–Pacasmayo",
+      "type": "Bus interprovincial",
+      "url": "https://expresodorado.com.pe/assets/img/home/imagen-0.jpg",
+      "fallbackColor": "#1abc9c"
+    },
+    {
+      "id": "salaverry-express",
+      "name": "Salaverry Express",
+      "type": "Combi urbana",
+      "url": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh4tv_dDlPvphyphenhyphenJmRpzZ_c4_8evff71b25vL2mGrvU0BmbNAvdCeRvGKqvihxyQPuAahkkr5C6uI7gaB0D5zUlXCh8XBPj06O-x1PVuZiP50_Q6Zr1IN8VA1Moy2ZxxfuZGaouasZlvU88/s1920/Screenshot_20210218-005743.jpg",
+      "fallbackColor": "#3498db"
+    }
+  ]
+}

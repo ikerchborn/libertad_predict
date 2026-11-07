@@ -1,0 +1,159 @@
+{
+  "generatedAt": "2026-11-06T22:08:09-0500",
+  "folder": "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses",
+  "format": "webp",
+  "maxWidth": 800,
+  "maxHeight": 800,
+  "empresas": [
+    {
+      "id": "chicama-premium",
+      "name": "Chicama Premium",
+      "type": "Bus interprovincial",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\chicama-premium.webp"
+      ],
+      "source_url": "https://s1.rdbuz.com/bo-images/PER/WM/30829/9/SI/ML/webp/iBBcgN.webp",
+      "errors": []
+    },
+    {
+      "id": "el-dorado",
+      "name": "Buses El Dorado",
+      "type": "Bus interprovincial",
+      "files": [],
+      "source_url": null,
+      "errors": [
+        "https://expresodorado.com.pe/assets/img/home/imagen-0.jpg (intento 2): HTTPSConnectionPool(host='expresodorado.com.pe', port=443): Max retries exceeded with url: /assets/img/home/imagen-0.jpg (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1081)')))"
+      ]
+    },
+    {
+      "id": "ecotur",
+      "name": "Ecotur",
+      "type": "Bus interprovincial",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\ecotur.webp"
+      ],
+      "source_url": "https://s1.rdbuz.com/bo-images/PER/WM/18169/9/FR/ML/webp/vffS4d.webp",
+      "errors": []
+    },
+    {
+      "id": "tunesa",
+      "name": "Tunesa",
+      "type": "Bus interprovincial",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\tunesa.webp"
+      ],
+      "source_url": "https://s1.rdbuz.com/bo-images/PER/WM/30829/9/SI/ML/webp/iBBcgN.webp",
+      "errors": []
+    },
+    {
+      "id": "levitur",
+      "name": "Levitur",
+      "type": "Bus interprovincial",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\levitur.webp"
+      ],
+      "source_url": "https://s1.rdbuz.com/bo-images/PER/WM/18169/9/FR/ML/webp/vffS4d.webp",
+      "errors": []
+    },
+    {
+      "id": "colectivos-ascope",
+      "name": "Colectivos Chocope–Magdalena de Cao",
+      "type": "Colectivo interurbano",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\colectivos-ascope.webp"
+      ],
+      "source_url": "https://elperuano.pe/suplementosflipping/lonuestro/275/web/img/foto14.jpg",
+      "errors": []
+    },
+    {
+      "id": "mototaxis-magdalena-cao",
+      "name": "Mototaxis Magdalena de Cao",
+      "type": "Mototaxi local",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\mototaxis-magdalena-cao.webp"
+      ],
+      "source_url": "https://cde.canaln.pe/actualidad-municipalidad-magdalena-lanza-motocuy-app-viajar-seguros-mototaxi-n470485-696x418-1028323.jpg",
+      "errors": []
+    },
+    {
+      "id": "ethsa-linea-b",
+      "name": "ETHSA - Línea B de Huanchaco",
+      "type": "Microbús urbano",
+      "files": [],
+      "source_url": null,
+      "errors": [
+        "http://viajeenbus.com/wp-content/uploads/2014/11/Empresa-de-Transportes-Huanchaco.jpg (intento 2): 403 Client Error: Forbidden for url: https://viajeenbus.com/wp-content/uploads/2014/11/Empresa-de-Transportes-Huanchaco.jpg"
+      ]
+    },
+    {
+      "id": "caballito-de-totora-c27b",
+      "name": "Caballito de Totora - Combi C-27 B",
+      "type": "Combi urbana",
+      "files": [],
+      "source_url": null,
+      "errors": [
+        "https://sientetrujillo.com/wp-content/uploads/2023/09/personas-con-discapacidad-severa-e1694622242495.jpg (intento 2): ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+      ]
+    },
+    {
+      "id": "lineas-huanchaco",
+      "name": "Líneas urbanas Trujillo–Huanchaco",
+      "type": "Combi / Microbús urbano",
+      "files": [],
+      "source_url": null,
+      "errors": [
+        "http://viajeenbus.com/wp-content/uploads/2014/11/Empresa-de-Transportes-Huanchaco.jpg (intento 2): 403 Client Error: Forbidden for url: https://viajeenbus.com/wp-content/uploads/2014/11/Empresa-de-Transportes-Huanchaco.jpg"
+      ]
+    },
+    {
+      "id": "lineas-chan-chan",
+      "name": "Líneas urbanas Trujillo–Chan Chan",
+      "type": "Microbús urbano",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\lineas-chan-chan.webp"
+      ],
+      "source_url": "https://toursentrujillo.com/wp-content/uploads/2021/06/mirabus.jpg",
+      "errors": []
+    },
+    {
+      "id": "combi-c14s-moche",
+      "name": "Combi C-14 S - Sol y Luna (Moche)",
+      "type": "Combi urbana",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\combi-c14s-moche.webp"
+      ],
+      "source_url": "https://i.ytimg.com/vi/1dCPAuYq6XE/maxresdefault.jpg",
+      "errors": []
+    },
+    {
+      "id": "lineas-chocope",
+      "name": "Líneas Trujillo–Chocope / Ascope",
+      "type": "Bus interurbano",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\lineas-chocope.webp"
+      ],
+      "source_url": "https://elperuano.pe/suplementosflipping/lonuestro/275/web/img/foto14.jpg",
+      "errors": []
+    },
+    {
+      "id": "lineas-pacasmayo",
+      "name": "Líneas Trujillo–Pacasmayo",
+      "type": "Bus interprovincial",
+      "files": [],
+      "source_url": null,
+      "errors": [
+        "https://expresodorado.com.pe/assets/img/home/imagen-0.jpg (intento 2): HTTPSConnectionPool(host='expresodorado.com.pe', port=443): Max retries exceeded with url: /assets/img/home/imagen-0.jpg (Caused by SSLError(SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1081)')))"
+      ]
+    },
+    {
+      "id": "salaverry-express",
+      "name": "Salaverry Express",
+      "type": "Combi urbana",
+      "files": [
+        "C:\\Users\\resan\\Downloads\\Development\\worksalign\\sql-caido-rescube\\prueva_maps\\img_buses\\salaverry-express.webp"
+      ],
+      "source_url": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEh4tv_dDlPvphyphenhyphenJmRpzZ_c4_8evff71b25vL2mGrvU0BmbNAvdCeRvGKqvihxyQPuAahkkr5C6uI7gaB0D5zUlXCh8XBPj06O-x1PVuZiP50_Q6Zr1IN8VA1Moy2ZxxfuZGaouasZlvU88/s1920/Screenshot_20210218-005743.jpg",
+      "errors": []
+    }
+  ]
+}

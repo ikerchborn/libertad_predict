@@ -1,0 +1,322 @@
+"""Generates the HTML checkpoint preview and renders it to PNG via headless Edge."""
+import subprocess
+from pathlib import Path
+
+html_content = """<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Checkpoint de Diseno v2: Friso Chan Chan y Escala Heatmap</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,700;1,6..72,400&family=Public+Sans:wght@400;500;600;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: #F6F4EE;
+    color: #1A1815;
+    font-family: 'Public Sans', sans-serif;
+    padding: 32px;
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #1A1815;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #58534A;
+    margin-bottom: 28px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .section {
+    background: #FFFFFF;
+    border: 1px solid #D3CBBF;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+
+  .section-title {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #96532B;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #ECE7DB;
+    padding-bottom: 6px;
+  }
+
+  .desc {
+    font-size: 13px;
+    color: #645F54;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  /* FRISO PATTERN */
+  .frieze-wrap {
+    background-color: #F6F4EE;
+    border: 1px solid #D3CBBF;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .frieze-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #58534A;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  .frieze-banner {
+    width: 100%;
+    height: 32px;
+    background-color: #F6F4EE;
+    background-repeat: repeat-x;
+    background-position: left center;
+  }
+
+  /* HEATMAP SCALE GRID */
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .heat-cell {
+    border-width: 1px;
+    border-style: solid;
+    padding: 14px 10px;
+    text-align: center;
+    border-radius: 0px;
+  }
+  .heat-date {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+    opacity: 0.85;
+  }
+  .heat-num {
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.0;
+    margin-bottom: 6px;
+  }
+  .heat-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+  }
+  .heat-range {
+    font-size: 10px;
+    opacity: 0.8;
+  }
+
+  /* COLOR SPECIFIC STYLES */
+  .cell-1 { background-color: #EAA399; color: #571109; border-color: #B84737; }
+  .cell-2 { background-color: #F3CA83; color: #5C3303; border-color: #C47D14; }
+  .cell-3 { background-color: #D8CCA6; color: #3D3710; border-color: #8A7942; }
+  .cell-4 { background-color: #9FD0AE; color: #0C4022; border-color: #3B8556; }
+  .cell-5 { background-color: #88C4E3; color: #07364C; border-color: #1E6E96; }
+
+  /* LEGEND */
+  .legend-bar {
+    display: flex;
+    border: 1px solid #D3CBBF;
+    background: #ECE7DB;
+    padding: 8px 12px;
+    gap: 16px;
+    align-items: center;
+    font-size: 12px;
+    color: #1A1815;
+  }
+  .legend-title {
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #58534A;
+    margin-right: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .legend-box {
+    width: 14px;
+    height: 14px;
+    border: 1px solid;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+  <h1>Checkpoint de Diseno v2: Verificacion Visual</h1>
+  <div class="subtitle">Turismo La Libertad &bull; Geometria Chim&uacute; y Escala de Conveniencia</div>
+
+  <!-- SECCION 1: FRISO CHIMU MODULAR REPETIBLE -->
+  <div class="section">
+    <div class="section-title">1. Friso de Adobe Chan Chan (Greca Escalonada Modular Sin Costuras)</div>
+    <div class="desc">
+      Diseno geometrico puro compuesto por modulos ortogonales repetibles de 48&times;24 px sin cruce de trazos.
+      Utiliza polilineas y rectangulos solidos sobre plano en color adobe profundo (<code>#96532B</code>).
+    </div>
+
+    <!-- SVG INLINE DEFINITION -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+      <defs>
+        <pattern id="chimu-frieze-1x" width="48" height="24" patternUnits="userSpaceOnUse">
+          <!-- Linea base de horizonte litoral (2px) -->
+          <rect x="0" y="21" width="48" height="2" fill="#96532B" />
+          <!-- Greca escalonada tipo Chan Chan sin cruce -->
+          <!-- Escalon 1 -->
+          <rect x="2" y="15" width="8" height="4" fill="#96532B" />
+          <!-- Escalon 2 -->
+          <rect x="8" y="11" width="8" height="4" fill="#96532B" />
+          <!-- Escalon 3 -->
+          <rect x="14" y="7" width="8" height="4" fill="#96532B" />
+          <!-- Cresta / Remate -->
+          <rect x="20" y="3" width="10" height="4" fill="#96532B" />
+          <!-- Caida y gancho -->
+          <rect x="26" y="7" width="4" height="8" fill="#96532B" />
+          <rect x="20" y="11" width="6" height="4" fill="#96532B" />
+          <!-- Rombo / Ojo interior chimu -->
+          <rect x="36" y="9" width="4" height="4" fill="#96532B" />
+        </pattern>
+        <pattern id="chimu-frieze-2x" width="96" height="48" patternUnits="userSpaceOnUse">
+          <g transform="scale(2)">
+            <rect x="0" y="21" width="48" height="2" fill="#96532B" />
+            <rect x="2" y="15" width="8" height="4" fill="#96532B" />
+            <rect x="8" y="11" width="8" height="4" fill="#96532B" />
+            <rect x="14" y="7" width="8" height="4" fill="#96532B" />
+            <rect x="20" y="3" width="10" height="4" fill="#96532B" />
+            <rect x="26" y="7" width="4" height="8" fill="#96532B" />
+            <rect x="20" y="11" width="6" height="4" fill="#96532B" />
+            <rect x="36" y="9" width="4" height="4" fill="#96532B" />
+          </g>
+        </pattern>
+      </defs>
+    </svg>
+
+    <div class="frieze-wrap">
+      <div class="frieze-label">Escala 1x (Altura nativa: 24 px &bull; Uso en divisores de banda)</div>
+      <div class="frieze-banner" style="height:24px; background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2224%22><rect x=%220%22 y=%2221%22 width=%2248%22 height=%222%22 fill=%22%2396532B%22/><rect x=%222%22 y=%2215%22 width=%228%22 height=%224%22 fill=%22%2396532B%22/><rect x=%228%22 y=%2211%22 width=%228%22 height=%224%22 fill=%22%2396532B%22/><rect x=%2214%22 y=%227%22 width=%228%22 height=%224%22 fill=%22%2396532B%22/><rect x=%2220%22 y=%223%22 width=%2210%22 height=%224%22 fill=%22%2396532B%22/><rect x=%2226%22 y=%227%22 width=%224%22 height=%228%22 fill=%22%2396532B%22/><rect x=%2220%22 y=%2211%22 width=%226%22 height=%224%22 fill=%22%2396532B%22/><rect x=%2236%22 y=%229%22 width=%224%22 height=%224%22 fill=%22%2396532B%22/></svg>');"></div>
+    </div>
+
+    <div class="frieze-wrap">
+      <div class="frieze-label">Escala 2x (Altura ampliada: 48 px &bull; Para cabecera editorial institucional)</div>
+      <div class="frieze-banner" style="height:48px; background-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2296%22 height=%2248%22><g transform=%22scale(2)%22><rect x=%220%22 y=%2221%22 width=%2248%22 height=%222%22 fill=%22%2396532B%22/><rect x=%222%22 y=%2215%22 width=%228%22 height=%224%22 fill=%22%2396532B%22/><rect x=%228%22 y=%2211%22 width=%228%22 height=%224%22 fill=%22%2396532B%22/><rect x=%2214%22 y=%227%22 width=%228%22 height=%224%22 fill=%22%2396532B%22/><rect x=%2220%22 y=%223%22 width=%2210%22 height=%224%22 fill=%22%2396532B%22/><rect x=%2226%22 y=%227%22 width=%224%22 height=%228%22 fill=%22%2396532B%22/><rect x=%2220%22 y=%2211%22 width=%226%22 height=%224%22 fill=%22%2396532B%22/><rect x=%2236%22 y=%229%22 width=%224%22 height=%224%22 fill=%22%2396532B%22/></g></svg>');"></div>
+    </div>
+  </div>
+
+  <!-- SECCION 2: ESCALA HEATMAP REDEFINIDA -->
+  <div class="section">
+    <div class="section-title">2. Escala Discreta del Heatmap (5 Escalones Redefinidos sobre Lienzo #F6F4EE)</div>
+    <div class="desc">
+      Fondos con saturacion y luminosidad calibradas para distinguirse entre si y contra el fondo de lienzo (<code>#F6F4EE</code>).
+      Texto con ratios de contraste WCAG superiores a 6.7:1 (pasa AAA). Cada celda incluye fecha, valor tabular y clasificacion textual.
+    </div>
+
+    <div class="heatmap-grid">
+      <div class="heat-cell cell-1">
+        <div class="heat-date">03 Nov</div>
+        <div class="heat-num">28</div>
+        <div class="heat-label">Cr&iacute;tico</div>
+        <div class="heat-range">Rango 0 &ndash; 39</div>
+      </div>
+      <div class="heat-cell cell-2">
+        <div class="heat-date">04 Nov</div>
+        <div class="heat-num">48</div>
+        <div class="heat-label">Desfavorable</div>
+        <div class="heat-range">Rango 40 &ndash; 54</div>
+      </div>
+      <div class="heat-cell cell-3">
+        <div class="heat-date">05 Nov</div>
+        <div class="heat-num">62</div>
+        <div class="heat-label">Regular</div>
+        <div class="heat-range">Rango 55 &ndash; 69</div>
+      </div>
+      <div class="heat-cell cell-4">
+        <div class="heat-date">06 Nov</div>
+        <div class="heat-num">79</div>
+        <div class="heat-label">Favorable</div>
+        <div class="heat-range">Rango 70 &ndash; 84</div>
+      </div>
+      <div class="heat-cell cell-5">
+        <div class="heat-date">07 Nov</div>
+        <div class="heat-num">94</div>
+        <div class="heat-label">&Oacute;ptimo</div>
+        <div class="heat-range">Rango 85 &ndash; 100</div>
+      </div>
+    </div>
+
+    <!-- LEYENDA VISIBLE PERMANENTE -->
+    <div class="legend-bar">
+      <span class="legend-title">Escala de Evaluaci&oacute;n:</span>
+      <div class="legend-item">
+        <span class="legend-box" style="background:#EAA399; border-color:#B84737;"></span>
+        <span>0&ndash;39 Cr&iacute;tico</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-box" style="background:#F3CA83; border-color:#C47D14;"></span>
+        <span>40&ndash;54 Desfavorable</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-box" style="background:#D8CCA6; border-color:#8A7942;"></span>
+        <span>55&ndash;69 Regular</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-box" style="background:#9FD0AE; border-color:#3B8556;"></span>
+        <span>70&ndash;84 Favorable</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-box" style="background:#88C4E3; border-color:#1E6E96;"></span>
+        <span>85&ndash;100 &Oacute;ptimo</span>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
+"""
+
+html_path = Path("scripts/checkpoint_preview.html")
+html_path.write_text(html_content, encoding="utf-8")
+print(f"Written HTML to {html_path.resolve()}")
+
+# Render to PNG using Microsoft Edge headless
+edge_exe = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+artifact_dir = Path(r"C:\Users\resan\.gemini\antigravity\brain\bad99014-08f4-4dce-a322-986b18efdbdb")
+png_output = artifact_dir / "checkpoint_frieze_heatmap.png"
+
+cmd = [
+    edge_exe,
+    "--headless",
+    "--disable-gpu",
+    "--no-sandbox",
+    f"--screenshot={png_output.resolve()}",
+    "--window-size=1024,800",
+    f"file:///{html_path.resolve()}".replace("\\", "/")
+]
+
+print("Rendering screenshot via Edge headless...")
+res = subprocess.run(cmd, capture_output=True, text=True)
+if png_output.exists():
+    print(f"Successfully generated screenshot: {png_output} ({png_output.stat().st_size} bytes)")
+else:
+    print(f"Failed to generate screenshot. Stderr: {res.stderr}")

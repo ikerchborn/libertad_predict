@@ -1,0 +1,46 @@
+# Eventos turísticos de La Libertad, Perú.
+# Eventos recurrentes: definir con 'recurrence: annual' y 'month'/'day_start'/'day_end'.
+# Eventos de fecha fija: definir con 'date_start'/'date_end' explícitos.
+
+events:
+  - name: "Festival de la Marinera"
+    recurrence: annual
+    month: 1
+    day_start: 20
+    day_end: 31
+    crowd_level: 5
+    notes: "Concurso Nacional de Marinera, Trujillo. Afluencia máxima."
+
+  - name: "Semana Santa"
+    recurrence: easter  # computed from Easter Sunday each year
+    offset_start_days: -3   # Jueves Santo
+    offset_end_days: 0      # Domingo de Resurrección
+    crowd_level: 4
+
+  - name: "Fiestas Patrias"
+    recurrence: annual
+    month: 7
+    day_start: 28
+    day_end: 29
+    crowd_level: 4
+
+  - name: "Aniversario de Trujillo"
+    recurrence: annual
+    month: 12
+    day_start: 27
+    day_end: 30
+    crowd_level: 3
+
+  - name: "Festival Internacional de la Primavera"
+    recurrence: annual
+    month: 9
+    day_start: 22
+    day_end: 29
+    crowd_level: 4
+
+  - name: "Chan Chan Festival Cultural"
+    recurrence: annual
+    month: 8
+    day_start: 15
+    day_end: 20
+    crowd_level: 3

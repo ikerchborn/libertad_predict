@@ -1,14 +1,14 @@
 # Turismo La Libertad
 
-Sistema de planeamiento tur?stico para el departamento de La Libertad, Per?, orientado a ayudar a viajeros, familias y profesionales a decidir d?nde ir, cu?ndo ir y qu? tan conveniente es un destino en funci?n de clima, seguridad, distancia, afluencia, servicios y transporte.
+Sistema de planeamiento tur?stico para el departamento de La Libertad, Per?, orientado a ayudar a viajeros, familias y profesionales a decidir donde ir, cu?ndo ir y qu? tan conveniente es un destino en funci?n de clima, seguridad, distancia, afluencia, servicios y transporte.
 
 La aplicaci?n combina una base de datos local como fuente de verdad, un backend en Python/FastAPI y una interfaz web en Next.js con mapas OpenStreetMap. El objetivo es ofrecer recomendaciones deterministas, ?tiles en ruta y sin depender de llamadas externas durante la navegaci?n del usuario.
 
-## ?Qu? incluye?
+## Que incluye?
 
-- C?lculo de conveniencia y scoring por lugar
-- Diagn?stico de seguridad georreferenciado
-- Pron?stico clim?tico y oce?nico
+- Calculo de conveniencia y scoring por lugar
+- Diagnostico de seguridad georreferenciado
+- Pronostico climitico y oceinico
 - Informaci?n de eventos y afluencia tur?stica
 - Cat?logo de lugares, hoteles, actividades y comida
 - Planificador multi-d?a con transporte p?blico local
@@ -112,7 +112,8 @@ Desde la ra?z del repositorio:
 
 ```powershell
 .venv\Scripts\python -m pytest
-.venv\Scriptsuff check src/ tests/
+.venv\Scripts
+uff check src/ tests/
 .venv\Scripts\python -m mypy --strict src tests
 ```
 

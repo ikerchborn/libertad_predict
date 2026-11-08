@@ -133,7 +133,7 @@ export default function TripPlanner({
   // Recalculate route on active day change
   useEffect(() => {
     if (isHydrated && activeDay) {
-      updateRouteGeometry(activeDay.places);
+      void Promise.resolve().then(() => updateRouteGeometry(activeDay.places));
     }
   }, [activeDay?.id, trip.travelMode, trip.hotelAnchor?.id, isHydrated]);
 

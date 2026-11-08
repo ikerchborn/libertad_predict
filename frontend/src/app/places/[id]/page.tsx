@@ -34,8 +34,8 @@ export default async function PlaceDetailPage({ params }: PageProps) {
 
   if (!place) notFound();
 
-  let nearbyLodging: any[] = [];
-  let nearbyFood: any[] = [];
+  let nearbyLodging: Awaited<ReturnType<typeof serverFetchNearby>> = [];
+  let nearbyFood: Awaited<ReturnType<typeof serverFetchNearby>> = [];
   if (place.kind === "attraction") {
     const [lodging, food] = await Promise.all([
       serverFetchNearby(placeId, "lodging", 3).catch(() => []),

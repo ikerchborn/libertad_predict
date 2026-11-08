@@ -1,0 +1,107 @@
+version: "1.0"
+
+# Weights >= 0. Set to 0 to disable a sub-factor entirely.
+# Pesos normalizados internamente; solo las proporciones relativas importan.
+
+categories:
+  hotel:
+    weather:
+      temperature: 3
+      rain: 4
+      uv: 1
+      wind: 1
+    marine: null  # inland hotels: no marine factor
+    calendar:
+      weekend: 2
+      crowd: 3
+    seasonality: 2
+    price: 3
+    safety: 2
+    thresholds:
+      temp_ideal_low: 18
+      temp_ideal_high: 28
+      precip_max: 10
+      uv_max: 8
+      wind_max: 40
+      weekend_penalty: 0.3
+      crowd_penalty_per_level: 0.15
+      price_min_snapshots: 7
+
+  restaurant:
+    weather:
+      temperature: 2
+      rain: 3
+      uv: 1
+      wind: 1
+    marine: null
+    calendar:
+      weekend: 1
+      crowd: 4
+    seasonality: 3
+    price: 0  # no price data for restaurants
+    safety: 2
+    thresholds:
+      temp_ideal_low: 16
+      temp_ideal_high: 30
+      precip_max: 15
+      uv_max: 10
+      wind_max: 50
+      weekend_penalty: 0.2
+      crowd_penalty_per_level: 0.2
+      price_min_snapshots: 7
+
+  attraction:
+    weather:
+      temperature: 3
+      rain: 5
+      uv: 1
+      wind: 1
+    marine: null
+    calendar:
+      weekend: 2
+      crowd: 5
+    seasonality: 4
+    price: 0
+    safety: 2
+    external_rating: 3
+    thresholds:
+      temp_ideal_low: 17
+      temp_ideal_high: 29
+      precip_max: 5
+      uv_max: 14
+      wind_max: 40
+      weekend_penalty: 0.20
+      crowd_penalty_per_level: 0.18
+      price_min_snapshots: 7
+
+  # Coastal override: add marine factors for coastal places
+  coastal_override:
+    marine:
+      wave_height: 3
+      wave_period: 2
+
+recommendation:
+  lodging:
+    relative_price: 3.0
+    completeness: 2.5
+    external_rating: 2.0
+    proximity: 2.0
+    event_context: 2.0
+    open_now: 1.0
+    safety: 2.0
+  food:
+    relative_price: 2.5
+    completeness: 3.0
+    external_rating: 2.0
+    proximity: 3.0
+    event_context: 1.0
+    open_now: 2.5
+    safety: 2.0
+  activity:
+    relative_price: 2.0
+    completeness: 3.5
+    external_rating: 2.0
+    proximity: 2.5
+    event_context: 1.5
+    open_now: 2.0
+    safety: 2.0

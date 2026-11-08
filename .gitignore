@@ -1,10 +1,16 @@
 .env
 *.db
+*.db-shm
+*.db-wal
+turismo.db
+data/*.db
+!data/seeds/
 __pycache__/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
 dist/
 .venv/
-data/*.db
 .agents/
+frontend/.next/
+frontend/node_modules/

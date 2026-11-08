@@ -1,0 +1,25 @@
+# CODEOWNERS - Turismo La Libertad (Modular Monolith)
+# Define quién debe revisar y aprobar cambios en cada módulo del sistema.
+
+# Scoring & Pesos (Factores de conveniencia, recomendación y regresión)
+/src/turismo/scoring/           @tu-usuario
+/config/weights.yaml            @tu-usuario @usuario-amigo
+/tests/scoring/                 @tu-usuario
+
+# Places, Enricher e Imágenes
+/src/turismo/places/            @usuario-amigo
+/tests/places/                  @usuario-amigo
+
+# Contextos de Datos Externos (Weather, Safety, Events, Pricing)
+/src/turismo/weather/           @tu-usuario
+/src/turismo/safety/            @tu-usuario
+/src/turismo/events/            @usuario-amigo
+/src/turismo/pricing/           @usuario-amigo
+
+# Kernel Compartido, Composition Root y Migraciones (revisión conjunta)
+/src/turismo/shared/            @tu-usuario @usuario-amigo
+/src/turismo/app/               @tu-usuario @usuario-amigo
+/migrations/                    @tu-usuario @usuario-amigo
+
+# Frontend Next.js
+/frontend/                      @usuario-amigo

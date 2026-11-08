@@ -76,3 +76,41 @@ filterwarnings = [
 [tool.bandit]
 exclude_dirs = ["tests", ".venv"]
 skips = ["B101"]  # allow assert
+
+[tool.importlinter]
+root_package = "turismo"
+
+[[tool.importlinter.contracts]]
+name = "El dominio no depende de infraestructura"
+type = "forbidden"
+source_modules = [
+    "turismo.places.domain",
+    "turismo.scoring.domain",
+    "turismo.weather.domain",
+    "turismo.safety.domain",
+    "turismo.events.domain",
+    "turismo.pricing.domain",
+]
+forbidden_modules = [
+    "turismo.places.infrastructure",
+    "turismo.scoring.infrastructure",
+    "turismo.weather.infrastructure",
+    "turismo.safety.infrastructure",
+    "turismo.events.infrastructure",
+    "turismo.pricing.infrastructure",
+    "sqlalchemy",
+    "fastapi",
+]
+
+[[tool.importlinter.contracts]]
+name = "Los módulos no se importan entre sí (salvo shared)"
+type = "independence"
+modules = [
+    "turismo.places",
+    "turismo.scoring",
+    "turismo.weather",
+    "turismo.safety",
+    "turismo.events",
+    "turismo.pricing",
+]
+

@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   CalendarDays,
-  ChevronDown,
   Compass,
   Eye,
   EyeOff,
@@ -13,7 +12,6 @@ import {
   Pencil,
   Plus,
 } from "lucide-react";
-import type { PlaceKind } from "@/lib/types";
 
 interface HeaderProps {
   onOpenTrips?: () => void;
@@ -31,7 +29,6 @@ interface HeaderProps {
   onRenameTrip?: (title: string) => void;
   onEditTripDates?: () => void;
   onToggleMap?: () => void;
-  onExplore?: (kind: PlaceKind | "all") => void;
 }
 
 export function Header({
@@ -43,17 +40,16 @@ export function Header({
   onRenameTrip,
   onEditTripDates,
   onToggleMap,
-  onExplore,
 }: HeaderProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
-  const [isExploreOpen, setIsExploreOpen] = useState(false);
 
   return (
-    <header
-      id={planner ? "planner-summary" : undefined}
-      className="libertad-header sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-md"
-    >
+    <>
+      <header
+        id={planner ? "planner-summary" : undefined}
+        className="libertad-header fixed top-0 left-0 right-0 z-[100] border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs"
+      >
       <div
         className={`mx-auto flex min-h-14 max-w-[1600px] items-center gap-3 px-4 sm:px-6 ${
           planner ? "flex-wrap justify-between py-2 xl:flex-nowrap" : "justify-between"
@@ -166,50 +162,6 @@ export function Header({
             </button>
           )}
 
-          {planner && onExplore && (
-            <div className="relative">
-              <button
-                type="button"
-                aria-expanded={isExploreOpen}
-                onClick={() => setIsExploreOpen((open) => !open)}
-                className="inline-flex h-9 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100"
-              >
-                Explorar más
-                <ChevronDown className={`h-3.5 w-3.5 transition ${isExploreOpen ? "rotate-180" : ""}`} />
-              </button>
-              {isExploreOpen && (
-                <div className="absolute right-0 top-full z-[60] mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
-                  <Link
-                    href="/places"
-                    onClick={() => setIsExploreOpen(false)}
-                    className="mb-1 block rounded-lg border-b border-slate-100 px-3 py-2 text-xs font-bold text-orange-700 hover:bg-orange-50"
-                  >
-                    Abrir catálogo completo
-                  </Link>
-                  {([
-                    ["all", "Todos los lugares"],
-                    ["attraction", "Atractivos"],
-                    ["lodging", "Hoteles"],
-                    ["food", "Comida"],
-                    ["activity", "Actividades"],
-                  ] as const).map(([kind, label]) => (
-                    <button
-                      key={kind}
-                      type="button"
-                      onClick={() => {
-                        onExplore(kind);
-                        setIsExploreOpen(false);
-                      }}
-                      className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:bg-orange-50 hover:text-orange-700"
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           {onOpenTrips && (
             <button
               type="button"
@@ -240,5 +192,6 @@ export function Header({
         </div>
       </div>
     </header>
-  );
+    <div className={planner ? "h-24 xl:h-14 shrink-0" : "h-14 shrink-0"} aria-hidden="true" />
+  </>);
 }

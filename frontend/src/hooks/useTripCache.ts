@@ -434,6 +434,12 @@ export function useTripCache() {
 
   const deleteAllTrips = useCallback(() => {
     const freshTrip = createDefaultTrip();
+    try {
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      localStorage.removeItem(STORAGE_MULTI_KEY);
+    } catch (e) {
+      console.warn('Error clearing localStorage:', e);
+    }
     persistStore({
       activeTripId: freshTrip.id,
       trips: [freshTrip],

@@ -10,8 +10,8 @@ export default async function PlacesPage() {
   const places = await serverFetchPlaces({ date: todayISO(), limit: 500 });
 
   return (
-    <div className="min-h-screen bg-adobe-bg text-adobe-dark">
-      <header className="sticky top-0 z-40 border-b border-adobe-border bg-white/95 backdrop-blur">
+    <div className="min-h-screen bg-adobe-bg text-adobe-dark pt-14">
+      <header className="fixed top-0 left-0 right-0 z-40 border-b border-adobe-border bg-white/95 backdrop-blur shadow-xs">
         <div className="mx-auto flex min-h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">

@@ -769,7 +769,12 @@ export function HomePlacesClient({
                   deleteAllTrips();
                   setIsDeleteAllConfirmOpen(false);
                   setIsTripsDrawerOpen(false);
-                  setIsStarted(false);
+                  setRouteStats(null);
+                  setRouteSegments([]);
+                  setSelectedLegId(null);
+                  setPlaceToAdd(null);
+                  setSelectedMapPlace(null);
+                  setDestInput("Trujillo");
                 }}
                 className="rounded-xl border border-red-700 bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800"
               >
@@ -795,12 +800,6 @@ export function HomePlacesClient({
           onToggleMap={() => {
             setIsMapVisible((visible) => !visible);
             if (isMapVisible && mobileTab === "map") setMobileTab("itinerary");
-          }}
-          onExplore={(kind) => {
-            setListCategory(kind);
-            setSearchQuery("");
-            setDisplayCount(10);
-            placesListRef.current?.scrollIntoView({ behavior: "smooth" });
           }}
           onCreateTrip={() => {
             const newId = createNewTrip(
@@ -1191,73 +1190,54 @@ export function HomePlacesClient({
               </div>
             </div>
 
-            {/* Quick Action Badges & Budget Card */}
-            <div className="planner-actions-budget grid grid-cols-1 gap-4">
-              <div className="bg-white rounded-2xl border border-adobe-border p-4 shadow-2xs flex flex-col justify-between space-y-3">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-adobe-muted">
-                  Explorar servicios
-                </span>
-                <div className="grid grid-cols-3 gap-3">
-                  <div
-                    onClick={() => {
-                      setListCategory("food");
-                      placesListRef.current?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl bg-adobe-bg/70 p-3 text-center text-adobe-dark transition hover:bg-moche-50 cursor-pointer"
-                  >
-                    <Utensils className="h-5 w-5 text-moche-600" />
-                    <span className="text-[11px] font-bold">Comida</span>
+            {/* Full-width transit budget */}
+            <div className="planner-actions-budget grid grid-cols-1">
+              <section className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs sm:p-5">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="min-w-0 sm:col-span-2 xl:col-span-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-adobe-muted">
+                      Presupuesto estimado de transporte ({activeDayLabel})
+                    </span>
+                    <div className="mt-1 font-display text-3xl font-extrabold text-adobe-dark">
+                      {totalTransitFareRange[0] === totalTransitFareRange[1]
+                        ? `S/ ${totalTransitFareRange[0].toFixed(2)}`
+                        : `S/ ${totalTransitFareRange[0].toFixed(2)}–${totalTransitFareRange[1].toFixed(2)}`}
+                    </div>
                   </div>
-                  <div
-                    onClick={() => {
-                      setListCategory("lodging");
-                      placesListRef.current?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl bg-indigo-50/70 p-3 text-center text-indigo-900 transition hover:bg-indigo-100 cursor-pointer"
-                  >
-                    <Hotel className="h-5 w-5 text-indigo-700" />
-                    <span className="text-[11px] font-bold">Hoteles</span>
-                  </div>
-                  <div
-                    onClick={() => {
-                      setListCategory("activity");
-                      placesListRef.current?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="flex min-h-20 flex-col items-center justify-center gap-1 rounded-xl bg-adobe-bg/70 p-3 text-center text-adobe-dark transition hover:bg-moche-50 cursor-pointer"
-                  >
-                    <ActivityIcon className="h-5 w-5 text-moche-600" />
-                    <span className="text-[11px] font-bold">Actividades</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Presupuesto Real Card */}
-              <div className="bg-white rounded-2xl border border-adobe-border p-4 shadow-2xs flex flex-col justify-between">
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-adobe-muted">
-                    Presupuesto estimado de transporte ({activeDayLabel})
-                  </span>
-                  <div className="text-2xl font-display font-extrabold text-adobe-dark mt-1">
-                    {totalTransitFareRange[0] === totalTransitFareRange[1]
-                      ? `S/ ${totalTransitFareRange[0].toFixed(2)}`
-                      : `S/ ${totalTransitFareRange[0].toFixed(2)}–${totalTransitFareRange[1].toFixed(2)}`}
+                  <div className="flex flex-col justify-center rounded-xl bg-adobe-bg/60 px-4 py-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted">
+                      Tiempo estimado
+                    </span>
+                    <span className="mt-1 text-lg font-extrabold text-adobe-dark">
+                      ~{estimatedTransitMinutes + estimatedWalkingMinutes} min
+                    </span>
+                    <span className="text-[11px] text-adobe-muted">En bus y caminata, sin esperas</span>
                   </div>
-                  <p className="text-[11px] text-adobe-muted mt-0.5">
-                    ~{estimatedTransitMinutes + estimatedWalkingMinutes} min de bus y caminata, sin esperas.
-                  </p>
-                  <p className="mt-1 text-[11px] leading-snug text-amber-900">
-                    Antes de subir, confirma el destino del letrero y la tarifa con el servicio local. Rutas y paraderos son referenciales.
-                  </p>
+
+                  <div className="flex flex-col justify-center rounded-xl bg-emerald-50/70 px-4 py-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                      Recorrido del día
+                    </span>
+                    <span className="mt-1 text-lg font-extrabold text-emerald-800">
+                      {dayTransitSteps.length} {dayTransitSteps.length === 1 ? "tramo" : "tramos"}
+                    </span>
+                    <span className="text-[11px] text-emerald-800">Calculados para el itinerario</span>
+                  </div>
+
+                  <div className="flex flex-col justify-center rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 sm:col-span-2 xl:col-span-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                      Ten en cuenta
+                    </span>
+                    <span className="mt-1 text-[11px] leading-snug text-amber-900">
+                      Confirma el destino y la tarifa con el servicio local. Rutas y paraderos son referenciales.
+                    </span>
+                  </div>
                 </div>
-                <div className="pt-2 border-t border-adobe-border/60 flex items-center justify-between text-xs">
-                  <span className="text-emerald-700 font-bold">
-                    {dayTransitSteps.length} tramos calculados
-                  </span>
-                  <span className="text-[11px] text-adobe-muted font-mono">
-                    Referencial
-                  </span>
+                <div className="mt-4 flex justify-end border-t border-adobe-border/60 pt-3">
+                  <span className="text-[11px] font-mono text-adobe-muted">Montos referenciales</span>
                 </div>
-              </div>
+              </section>
             </div>
 
             {/* Section Notas Persistentes */}
@@ -1443,6 +1423,28 @@ export function HomePlacesClient({
                     </div>
                   )}
 
+                  {activeDay && activeDay.places.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `¿Deseas vaciar las ${activeDay.places.length} paradas de ${activeDay.title || "este día"}?`
+                          )
+                        ) {
+                          setDayPlaces(activeDay.id, []);
+                          setRouteStats(null);
+                          setRouteSegments([]);
+                          setSelectedLegId(null);
+                        }
+                      }}
+                      title="Eliminar todas las paradas de este día"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Vaciar paradas</span>
+                    </button>
+                  )}
                   {activeDay && activeDay.places.length > 2 && (
                     <button
                       type="button"
@@ -1513,6 +1515,7 @@ export function HomePlacesClient({
                               colectivo: "colectivo",
                               mototaxi: "mototaxi",
                               caminata: "caminata",
+                              taxi: "taxi",
                             }[transit.vehicleType]
                           : "";
                         const legSegments = routeSegments.filter(
@@ -1648,6 +1651,8 @@ export function HomePlacesClient({
                                   <div className="w-9 h-9 rounded-xl bg-amber-800 text-white flex items-center justify-center shrink-0 font-bold text-lg shadow-2xs">
                                     {transit.vehicleType === "caminata"
                                       ? "🚶"
+                                      : transit.vehicleType === "taxi"
+                                      ? "🚕"
                                       : transit.vehicleType === "combi"
                                       ? "🚐"
                                       : transit.vehicleType === "mototaxi"
@@ -1660,7 +1665,7 @@ export function HomePlacesClient({
                                         Leg {legId}
                                       </span>
                                       <span className="font-bold text-amber-950 text-sm">
-                                        {transit.vehicleType === "micro" ? "Microbús" : transit.vehicleType === "combi" ? "Combi" : transit.vehicleType === "bus" ? "Bus" : transit.vehicleType === "mototaxi" ? "Mototaxi" : "Caminata"}
+                                        {transit.vehicleType === "micro" ? "Microbús" : transit.vehicleType === "combi" ? "Combi" : transit.vehicleType === "bus" ? "Bus" : transit.vehicleType === "mototaxi" ? "Mototaxi" : transit.vehicleType === "taxi" ? "Taxi / Aplicativo" : "Caminata"}
                                       </span>
                                       <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-200 text-amber-900 font-mono">
                                         {transit.code}
@@ -1671,6 +1676,22 @@ export function HomePlacesClient({
                                         <p>
                                           <b>Camina:</b> {place.name} → {nextPlace?.name}; {walkMeasure("to-place", [place.lat, place.lon], [nextPlace?.lat ?? place.lat, nextPlace?.lon ?? place.lon])}.
                                         </p>
+                                      ) : transit.vehicleType === "taxi" ? (
+                                        <>
+                                          <p>
+                                            <b>Aborda:</b> Taxi en {place.name} (en puerta, paradero de taxis o solicita por app Yango / Uber / inDrive).
+                                          </p>
+                                          <p>
+                                            <b>Trayecto directo:</b> {place.name} → {nextPlace?.name} (sin transbordos ni caminata a paraderos).
+                                          </p>
+                                          <p>
+                                            <b>Tarifa estimada:</b>{" "}
+                                            {transit.fareRangePen
+                                              ? `S/ ${transit.fareRangePen[0].toFixed(2)} – ${transit.fareRangePen[1].toFixed(2)}`
+                                              : `Aprox. S/ ${transit.farePen.toFixed(2)}`}{" "}
+                                            · viaje directo ~{transit.estimatedMinutes} min.
+                                          </p>
+                                        </>
                                       ) : (
                                         <>
                                           <p>
@@ -2530,25 +2551,32 @@ export function HomePlacesClient({
                             <Copy className="w-3.5 h-3.5" />
                           </button>
 
-                          {/* Delete Trip (disabled if only 1 exists) */}
+                          {/* Delete Trip / Reset if only 1 exists */}
                           <button
                             type="button"
-                            disabled={savedTrips.length <= 1}
                             onClick={() => {
-                              if (window.confirm(`¿Estás seguro de eliminar "${st.title}"?`)) {
+                              const isOnlyOne = savedTrips.length <= 1;
+                              if (
+                                window.confirm(
+                                  isOnlyOne
+                                    ? `¿Deseas reiniciar y vaciar "${st.title}"? Se borrarán todas sus paradas.`
+                                    : `¿Estás seguro de eliminar "${st.title}"?`
+                                )
+                              ) {
                                 deleteTrip(st.id);
+                                setRouteStats(null);
+                                setRouteSegments([]);
+                                setSelectedLegId(null);
+                                setPlaceToAdd(null);
+                                setSelectedMapPlace(null);
                               }
                             }}
                             title={
                               savedTrips.length <= 1
-                                ? "No puedes eliminar tu único itinerario"
+                                ? "Vaciar y reiniciar este viaje"
                                 : "Eliminar este viaje"
                             }
-                            className={`p-1.5 rounded-xl text-xs transition border cursor-pointer ${
-                              savedTrips.length <= 1
-                                ? "opacity-30 cursor-not-allowed text-neutral-400 border-neutral-200"
-                                : "bg-adobe-bg hover:bg-red-50 text-neutral-500 hover:text-red-600 border-adobe-border"
-                            }`}
+                            className="p-1.5 rounded-xl text-xs transition border cursor-pointer bg-adobe-bg hover:bg-red-50 text-neutral-500 hover:text-red-600 border-adobe-border"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

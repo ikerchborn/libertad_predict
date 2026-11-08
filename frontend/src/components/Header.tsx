@@ -144,9 +144,9 @@ export function Header({
             <a className="transition hover:text-orange-600" href="#planner-summary">
               Resumen
             </a>
-            <a className="transition hover:text-orange-600" href="#places-catalog">
-              Destinos
-            </a>
+            <Link className="transition hover:text-orange-600" href="/places">
+              Lugares
+            </Link>
             <a className="transition hover:text-orange-600" href="#planner-itinerary">
               Itinerario
             </a>
@@ -179,6 +179,13 @@ export function Header({
               </button>
               {isExploreOpen && (
                 <div className="absolute right-0 top-full z-[60] mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                  <Link
+                    href="/places"
+                    onClick={() => setIsExploreOpen(false)}
+                    className="mb-1 block rounded-lg border-b border-slate-100 px-3 py-2 text-xs font-bold text-orange-700 hover:bg-orange-50"
+                  >
+                    Abrir catálogo completo
+                  </Link>
                   {([
                     ["all", "Todos los lugares"],
                     ["attraction", "Atractivos"],

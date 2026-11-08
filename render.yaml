@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: lalibertad-predict-api
+    runtime: python
+    plan: free
+    buildCommand: pip install .
+    startCommand: python -m turismo migrate && python -m turismo score --days 16 && uvicorn turismo.app.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        value: '["https://lalibertad-predict.vercel.app","http://localhost:3000"]'
+      - key: DOCS_ENABLED
+        value: "true"

@@ -1,0 +1,41 @@
+name: Daily Weather & Convenience Score Refresh
+
+on:
+  schedule:
+    - cron: "0 10 * * *" # 05:00 AM America/Lima (UTC-5)
+  workflow_dispatch:
+
+jobs:
+  refresh-scores:
+    name: Collect Open-Meteo & Recompute Scores on Supabase
+    runs-on: ubuntu-latest
+    if: ${{ secrets.DATABASE_URL != '' }}
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+
+      - name: Collect Open-Meteo Weather & Marine Forecast
+        run: python -m turismo collect open_meteo
+
+      - name: Recompute 16-day Convenience Scores
+        run: |
+          python -c "
+          from datetime import UTC, datetime, timedelta
+          import asyncio
+          from turismo.app.scheduler import job_compute_scores
+          from turismo.shared.config import get_settings
+          asyncio.run(job_compute_scores(get_settings()))
+          "

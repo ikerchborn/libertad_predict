@@ -8,6 +8,7 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "sqlalchemy>=2.0,<3.0",       # ORM + async support
+    "psycopg[binary]>=3.1,<4.0",  # PostgreSQL / Supabase driver
     "alembic>=1.13,<2.0",         # DB migrations
     "pydantic>=2.7,<3.0",         # Domain validation + settings
     "pydantic-settings>=2.3,<3.0",# Config from env vars

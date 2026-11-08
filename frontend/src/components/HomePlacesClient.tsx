@@ -28,7 +28,6 @@ import {
   ExternalLink,
   Globe,
   Phone,
-  AlertTriangle,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -701,35 +700,6 @@ export function HomePlacesClient({
 
   return (
     <div className={`min-h-screen flex flex-col justify-between antialiased selection:bg-moche-500 selection:text-white bg-adobe-bg text-adobe-dark font-sans ${compactMode ? "travel-mode" : ""}`}>
-      <div className="border-b border-amber-200 bg-amber-50/90 px-4 py-3 text-adobe-dark shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-start gap-3">
-          <div className="mt-0.5 rounded-full bg-amber-100 p-2 text-amber-700">
-            <AlertTriangle className="h-4 w-4" />
-          </div>
-          <div className="flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-amber-600">
-              Recordatorio de seguridad
-            </p>
-            <p className="mt-1 text-sm text-adobe-dark">
-              Guarda tus documentos, comparte tu ruta con alguien de confianza y mantén el teléfono cargado durante todo el trayecto.
-            </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
-              {[
-                { label: "Emergencias", value: "911" },
-                { label: "Policía", value: "105" },
-                { label: "Bomberos", value: "116" },
-              ].map((contact) => (
-                <div key={contact.label} className="rounded-xl border border-amber-200 bg-white/80 px-3 py-2">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700">
-                    {contact.label}
-                  </div>
-                  <div className="mt-1 text-base font-black text-adobe-dark">{contact.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
       {placeToAdd && (
         <div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
@@ -1041,7 +1011,7 @@ export function HomePlacesClient({
               <a href="#planner-summary"><MapPin />Resumen</a>
               <a href="#places-catalog"><Compass />Explorar</a>
               <a href="#planner-notes"><FileText />Notas</a>
-              <a href="#places-catalog"><Landmark />Lugares</a>
+              <Link href="/places"><Landmark />Lugares</Link>
               <span className="planner-sidebar-label planner-days-label">ITINERARIO</span>
               {trip.days.map((day, index) => (
                 <button
@@ -1062,7 +1032,7 @@ export function HomePlacesClient({
               <a href="#planner-summary">Resumen</a>
               <a href="#planner-itinerary">Itinerario</a>
               <a href="#planner-notes">Notas</a>
-              <a href="#places-catalog">Lugares</a>
+              <Link href="/places">Lugares</Link>
             </nav>
             <div className="planner-main">
 

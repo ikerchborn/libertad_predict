@@ -36,7 +36,7 @@ def upgrade() -> None:
     op.create_table(
         "places",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("osm_id", sa.Integer(), nullable=False),
+        sa.Column("osm_id", sa.BigInteger(), nullable=False),
         sa.Column("name", sa.String(300), nullable=False),
         sa.Column("category", sa.String(50), nullable=False),
         sa.Column("coast_type", sa.String(20), nullable=False),

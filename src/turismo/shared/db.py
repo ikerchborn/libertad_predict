@@ -120,15 +120,31 @@ def _restrict_sqlite_file_permissions(database_url: str) -> None:
         db_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
 
 
+def normalize_database_url(database_url: str) -> str:
+    """Normalize postgres:// or postgresql:// URLs to use the psycopg v3 driver."""
+    url = database_url.strip()
+    if url.startswith("postgres://"):
+        return "postgresql+psycopg://" + url[len("postgres://") :]
+    if url.startswith("postgresql://"):
+        return "postgresql+psycopg://" + url[len("postgresql://") :]
+    return url
+
+
 def create_engine(database_url: str) -> Engine:
-    connect_args = {}
-    if database_url.startswith("sqlite"):
+    normalized_url = normalize_database_url(database_url)
+    connect_args: dict[str, Any] = {}
+    if normalized_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
 
-    engine = sa_create_engine(database_url, echo=False, connect_args=connect_args)
-    if database_url.startswith("sqlite"):
+    engine = sa_create_engine(
+        normalized_url,
+        echo=False,
+        pool_pre_ping=not normalized_url.startswith("sqlite"),
+        connect_args=connect_args,
+    )
+    if normalized_url.startswith("sqlite"):
         event.listen(engine, "connect", _apply_sqlite_pragmas)
-        _restrict_sqlite_file_permissions(database_url)
+        _restrict_sqlite_file_permissions(normalized_url)
     return engine
 
 

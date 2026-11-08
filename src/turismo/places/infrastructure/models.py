@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -23,7 +24,7 @@ class PlaceORM(Base):
     __tablename__ = "places"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    osm_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    osm_id: Mapped[int] = mapped_column(BigInteger, nullable=False, unique=True)
     name: Mapped[str] = mapped_column(String(300), nullable=False)
     category: Mapped[str] = mapped_column(String(50), nullable=False)
     kind: Mapped[str] = mapped_column(String(20), nullable=False, default="unclassified")

@@ -1,0 +1,1066 @@
+{
+  "metadata": {
+    "name": "transport_outside_trujillo",
+    "version": "1.0.0",
+    "generatedAt": "2026-11-06",
+    "timezone": "America/Lima",
+    "crs": "EPSG:4326",
+    "note": "Catálogo v1: rutas prioritarias desde Trujillo (La Libertad, Perú). Campos 'confidence' y 'fareRangePen' indican incertidumbre. Geometrías son trazados aproximados sobre corredores conocidos; recomendado recalcular con OSRM usando los paraderos."
+  },
+  "companies": [
+    {
+      "id": "chicama-premium",
+      "name": "Chicama Premium",
+      "type": "interprovincial",
+      "legalName": null,
+      "phone": "+51 940 324 192",
+      "website": null,
+      "source": "Redes oficiales / terminal Santa Cruz (dato histórico, verificar)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "el-dorado",
+      "name": "Buses El Dorado (amarillos)",
+      "type": "interprovincial",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "Referencia histórica de rutas Trujillo–Malabrigo",
+      "verifiedAt": "2026-11-06",
+      "confidence": "baja"
+    },
+    {
+      "id": "ecotur",
+      "name": "Ecotur",
+      "type": "interprovincial",
+      "legalName": "Ecotur S.A.C.",
+      "phone": null,
+      "website": "https://www.redbus.pe/viaje-en-bus/ecotur-huamachuco",
+      "source": "redBus.pe (venta activa de pasajes Trujillo–Huamachuco)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "alta"
+    },
+    {
+      "id": "tunesa",
+      "name": "Tunesa",
+      "type": "interprovincial",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "Referencia histórica de rutas de Sánchez Carrión",
+      "verifiedAt": "2026-11-06",
+      "confidence": "baja"
+    },
+    {
+      "id": "levitur",
+      "name": "Levitur",
+      "type": "interprovincial",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "Referencia histórica de rutas de Sánchez Carrión",
+      "verifiedAt": "2026-11-06",
+      "confidence": "baja"
+    },
+    {
+      "id": "colectivos-ascope",
+      "name": "Colectivos Chocope–Magdalena de Cao (varias líneas)",
+      "type": "interurbano",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "elbrujo.pe (tramo indicado oficialmente)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "alta"
+    },
+    {
+      "id": "mototaxis-magdalena-cao",
+      "name": "Mototaxis Magdalena de Cao",
+      "type": "local",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "elbrujo.pe (tramo indicado oficialmente)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "alta"
+    },
+    {
+      "id": "lineas-huanchaco",
+      "name": "Líneas urbanas Trujillo–Huanchaco (varias empresas)",
+      "type": "urbano",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "Referencia histórica (tarifa S/ 2.50–3.50)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "lineas-chocope",
+      "name": "Líneas Trujillo–Chocope / Ascope (varias empresas)",
+      "type": "interurbano",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "Referencia histórica",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "lineas-pacasmayo",
+      "name": "Líneas Trujillo–Pacasmayo (varias empresas)",
+      "type": "interprovincial",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "Referencia histórica",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "lineas-salaverry",
+      "name": "Líneas urbanas Trujillo–Salaverry (varias empresas)",
+      "type": "urbano",
+      "legalName": null,
+      "phone": null,
+      "website": null,
+      "source": "Referencia histórica",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    }
+  ],
+  "stops": [
+    {
+      "id": "terminal-santa-cruz",
+      "name": "Terminal Terrestre Santa Cruz",
+      "type": "terminal",
+      "latitude": -8.1034,
+      "longitude": -79.0288,
+      "address": "Calle Santa Cruz s/n, sector Las Delicias, Trujillo (referencial)",
+      "city": "Trujillo",
+      "province": "Trujillo",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-puerto-chicama",
+        "trujillo-chocope",
+        "trujillo-pacasmayo"
+      ],
+      "source": "OpenStreetMap / referencia histórica (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "terrapuerto-trujillo",
+      "name": "Terrapuerto Trujillo (El Milagro)",
+      "type": "terminal",
+      "latitude": -8.0864,
+      "longitude": -79.0092,
+      "address": "Av. Prolongación Unión s/n, El Milagro, Trujillo (referencial)",
+      "city": "Trujillo",
+      "province": "Trujillo",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-huamachuco"
+      ],
+      "source": "OpenStreetMap / referencia histórica (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "ovalo-el-chira",
+      "name": "Óvalo El Chira (Panamericana Norte)",
+      "type": "paradero",
+      "latitude": -8.0891,
+      "longitude": -78.9656,
+      "address": "Óvalo El Chira, Trujillo",
+      "city": "Trujillo",
+      "province": "Trujillo",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-puerto-chicama",
+        "trujillo-chocope"
+      ],
+      "source": "OpenStreetMap (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "paijan",
+      "name": "Paiján (Panamericana Norte)",
+      "type": "paradero",
+      "latitude": -7.7331,
+      "longitude": -79.3006,
+      "address": "Panamericana Norte, Paiján",
+      "city": "Paiján",
+      "province": "Ascope",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-puerto-chicama"
+      ],
+      "source": "OpenStreetMap (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "terminal-puerto-chicama",
+      "name": "Playa / terminal Puerto Malabrigo (Puerto Chicama)",
+      "type": "terminal",
+      "latitude": -7.7006,
+      "longitude": -79.3192,
+      "address": "Plaza principal, Puerto Malabrigo, Ascope",
+      "city": "Puerto Malabrigo",
+      "province": "Ascope",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-puerto-chicama"
+      ],
+      "source": "OpenStreetMap (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "chocope-terminal",
+      "name": "Terminal/paradero principal de Chocope",
+      "type": "terminal",
+      "latitude": -7.7911,
+      "longitude": -79.2267,
+      "address": "Panamericana Norte, Chocope, Ascope",
+      "city": "Chocope",
+      "province": "Ascope",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-chocope",
+        "chocope-magdalena-de-cao"
+      ],
+      "source": "OpenStreetMap (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "magdalena-de-cao-plaza",
+      "name": "Plaza principal de Magdalena de Cao",
+      "type": "paradero",
+      "latitude": -7.955,
+      "longitude": -79.298,
+      "address": "Plaza de Armas, Magdalena de Cao, Ascope",
+      "city": "Magdalena de Cao",
+      "province": "Ascope",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "chocope-magdalena-de-cao",
+        "magdalena-de-cao-el-brujo"
+      ],
+      "source": "OpenStreetMap (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "el-brujo-complejo",
+      "name": "Complejo Arqueológico El Brujo",
+      "type": "atractivo",
+      "latitude": -7.9136,
+      "longitude": -79.3072,
+      "address": "Campiña de Moche, Magdalena de Cao, Ascope",
+      "city": "Magdalena de Cao",
+      "province": "Ascope",
+      "department": "La Libertad",
+      "boardingAllowed": false,
+      "dropoffAllowed": true,
+      "routes": [
+        "magdalena-de-cao-el-brujo"
+      ],
+      "source": "OpenStreetMap / elbrujo.pe",
+      "verifiedAt": "2026-11-06",
+      "confidence": "alta"
+    },
+    {
+      "id": "huamachuco-agencia",
+      "name": "Agencia Ecotur Huamachuco / terminal",
+      "type": "terminal",
+      "latitude": -7.815,
+      "longitude": -78.0628,
+      "address": "Centro de Huamachuco, Sánchez Carrión",
+      "city": "Huamachuco",
+      "province": "Sánchez Carrión",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-huamachuco"
+      ],
+      "source": "redBus (punto de embarque 'Agencia Huamachuco') / OSM",
+      "verifiedAt": "2026-11-06",
+      "confidence": "alta"
+    },
+    {
+      "id": "pacasmayo-terminal",
+      "name": "Terminal de Pacasmayo",
+      "type": "terminal",
+      "latitude": -7.4006,
+      "longitude": -79.5694,
+      "address": "Panamericana Norte, Pacasmayo",
+      "city": "Pacasmayo",
+      "province": "Pacasmayo",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-pacasmayo"
+      ],
+      "source": "OpenStreetMap (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "salaverry-plaza",
+      "name": "Playa/centro de Salaverry",
+      "type": "paradero",
+      "latitude": -8.2208,
+      "longitude": -78.9817,
+      "address": "Malecón de Salaverry, Trujillo",
+      "city": "Salaverry",
+      "province": "Trujillo",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-salaverry"
+      ],
+      "source": "OpenStreetMap (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "huanchaco-plaza",
+      "name": "Plaza principal de Huanchaco",
+      "type": "paradero",
+      "latitude": -8.0667,
+      "longitude": -79.1217,
+      "address": "Malecón de Huanchaco, Trujillo",
+      "city": "Huanchaco",
+      "province": "Trujillo",
+      "department": "La Libertad",
+      "boardingAllowed": true,
+      "dropoffAllowed": true,
+      "routes": [
+        "trujillo-huanchaco"
+      ],
+      "source": "OpenStreetMap (coordenada aproximada)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    }
+  ],
+  "routes": [
+    {
+      "id": "trujillo-puerto-chicama",
+      "code": "INTER-CHICAMA",
+      "name": "Trujillo - Puerto Chicama (Malabrigo)",
+      "serviceName": "Chicama Premium / El Dorado",
+      "companyId": "chicama-premium",
+      "vehicleType": "bus",
+      "category": "interprovincial",
+      "originPlace": "Trujillo",
+      "destinationPlace": "Puerto Malabrigo",
+      "direction": "outbound",
+      "farePen": 12.0,
+      "fareRangePen": [
+        8.0,
+        15.0
+      ],
+      "estimatedMinutes": 105,
+      "distanceKm": 72.0,
+      "boardingStopId": "terminal-santa-cruz",
+      "dropoffStopId": "terminal-puerto-chicama",
+      "routeGeometry": {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -79.0288,
+              -8.1034
+            ],
+            [
+              -78.9656,
+              -8.0891
+            ],
+            [
+              -78.905,
+              -8.045
+            ],
+            [
+              -79.15,
+              -7.9
+            ],
+            [
+              -79.3006,
+              -7.7331
+            ],
+            [
+              -79.3192,
+              -7.7006
+            ]
+          ]
+        },
+        "properties": {}
+      },
+      "active": true,
+      "source": "Ruta histórica Panamericana Norte + desvío Malabrigo; tarifa referencial (histórico S/ 5.5–12)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "trujillo-chocope",
+      "code": "INTER-CHOCOPE",
+      "name": "Trujillo - Chocope",
+      "serviceName": "Líneas Trujillo–Chocope / Ascope",
+      "companyId": "lineas-chocope",
+      "vehicleType": "bus",
+      "category": "interurbano",
+      "originPlace": "Trujillo",
+      "destinationPlace": "Chocope",
+      "direction": "outbound",
+      "farePen": 7.0,
+      "fareRangePen": [
+        6.0,
+        9.0
+      ],
+      "estimatedMinutes": 55,
+      "distanceKm": 33.0,
+      "boardingStopId": "terminal-santa-cruz",
+      "dropoffStopId": "chocope-terminal",
+      "routeGeometry": {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -79.0288,
+              -8.1034
+            ],
+            [
+              -78.9656,
+              -8.0891
+            ],
+            [
+              -78.905,
+              -8.045
+            ],
+            [
+              -79.2267,
+              -7.7911
+            ]
+          ]
+        },
+        "properties": {}
+      },
+      "active": true,
+      "source": "Tramo oficial elbrujo.pe 'Hasta Chocope 1 h'; tarifa referencial",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "chocope-magdalena-de-cao",
+      "code": "CHOCOPE-MDCAO",
+      "name": "Chocope - Magdalena de Cao (colectivo)",
+      "serviceName": "Colectivos Ascope",
+      "companyId": "colectivos-ascope",
+      "vehicleType": "colectivo",
+      "category": "interurbano",
+      "originPlace": "Chocope",
+      "destinationPlace": "Magdalena de Cao",
+      "direction": "outbound",
+      "farePen": 5.0,
+      "fareRangePen": [
+        4.0,
+        6.0
+      ],
+      "estimatedMinutes": 20,
+      "distanceKm": 15.0,
+      "boardingStopId": "chocope-terminal",
+      "dropoffStopId": "magdalena-de-cao-plaza",
+      "routeGeometry": {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -79.2267,
+              -7.7911
+            ],
+            [
+              -79.27,
+              -7.88
+            ],
+            [
+              -79.298,
+              -7.955
+            ]
+          ]
+        },
+        "properties": {}
+      },
+      "active": true,
+      "source": "elbrujo.pe: colectivo 20 min; tarifa referencial",
+      "verifiedAt": "2026-11-06",
+      "confidence": "alta"
+    },
+    {
+      "id": "magdalena-de-cao-el-brujo",
+      "code": "MDCAO-ELBRUJO",
+      "name": "Magdalena de Cao - El Brujo (mototaxi)",
+      "serviceName": "Mototaxis locales",
+      "companyId": "mototaxis-magdalena-cao",
+      "vehicleType": "mototaxi",
+      "category": "local",
+      "originPlace": "Magdalena de Cao",
+      "destinationPlace": "El Brujo",
+      "direction": "outbound",
+      "farePen": 7.0,
+      "fareRangePen": [
+        5.0,
+        10.0
+      ],
+      "estimatedMinutes": 15,
+      "distanceKm": 7.0,
+      "boardingStopId": "magdalena-de-cao-plaza",
+      "dropoffStopId": "el-brujo-complejo",
+      "routeGeometry": {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -79.298,
+              -7.955
+            ],
+            [
+              -79.302,
+              -7.93
+            ],
+            [
+              -79.3072,
+              -7.9136
+            ]
+          ]
+        },
+        "properties": {}
+      },
+      "active": true,
+      "source": "elbrujo.pe: mototaxi 15 min; tarifa referencial",
+      "verifiedAt": "2026-11-06",
+      "confidence": "alta"
+    },
+    {
+      "id": "trujillo-huamachuco",
+      "code": "INTER-HUAMACHUCO",
+      "name": "Trujillo - Huamachuco",
+      "serviceName": "Ecotur / Tunesa / Levitur",
+      "companyId": "ecotur",
+      "vehicleType": "bus",
+      "category": "interprovincial",
+      "originPlace": "Trujillo",
+      "destinationPlace": "Huamachuco",
+      "direction": "outbound",
+      "farePen": 35.0,
+      "fareRangePen": [
+        30.0,
+        40.0
+      ],
+      "estimatedMinutes": 270,
+      "distanceKm": 180.0,
+      "boardingStopId": "terrapuerto-trujillo",
+      "dropoffStopId": "huamachuco-agencia",
+      "routeGeometry": {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -79.0092,
+              -8.0864
+            ],
+            [
+              -78.9656,
+              -8.0891
+            ],
+            [
+              -78.78,
+              -7.9
+            ],
+            [
+              -78.45,
+              -7.86
+            ],
+            [
+              -78.0628,
+              -7.815
+            ]
+          ]
+        },
+        "properties": {}
+      },
+      "active": true,
+      "source": "redBus.pe (Ecotur vende Trujillo–Huamachuco, 2026); duración y tarifa referencial S/ 30–40",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "trujillo-pacasmayo",
+      "code": "INTER-PACASMAYO",
+      "name": "Trujillo - Pacasmayo",
+      "serviceName": "Líneas Trujillo–Pacasmayo",
+      "companyId": "lineas-pacasmayo",
+      "vehicleType": "bus",
+      "category": "interprovincial",
+      "originPlace": "Trujillo",
+      "destinationPlace": "Pacasmayo",
+      "direction": "outbound",
+      "farePen": 22.0,
+      "fareRangePen": [
+        18.0,
+        28.0
+      ],
+      "estimatedMinutes": 120,
+      "distanceKm": 110.0,
+      "boardingStopId": "terminal-santa-cruz",
+      "dropoffStopId": "pacasmayo-terminal",
+      "routeGeometry": {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -79.0288,
+              -8.1034
+            ],
+            [
+              -78.905,
+              -8.045
+            ],
+            [
+              -79.0,
+              -7.9
+            ],
+            [
+              -79.3006,
+              -7.7331
+            ],
+            [
+              -79.45,
+              -7.55
+            ],
+            [
+              -79.5694,
+              -7.4006
+            ]
+          ]
+        },
+        "properties": {}
+      },
+      "active": true,
+      "source": "Ruta Panamericana Norte; tarifa referencial",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    },
+    {
+      "id": "trujillo-salaverry",
+      "code": "URB-SALAVERRY",
+      "name": "Trujillo - Salaverry (urbano)",
+      "serviceName": "Líneas urbanas",
+      "companyId": "lineas-salaverry",
+      "vehicleType": "combi",
+      "category": "urbano",
+      "originPlace": "Trujillo",
+      "destinationPlace": "Salaverry",
+      "direction": "outbound",
+      "farePen": 3.0,
+      "fareRangePen": [
+        2.5,
+        4.0
+      ],
+      "estimatedMinutes": 40,
+      "distanceKm": 15.0,
+      "boardingStopId": "terminal-santa-cruz",
+      "dropoffStopId": "salaverry-plaza",
+      "routeGeometry": {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -79.0288,
+              -8.1034
+            ],
+            [
+              -79.01,
+              -8.16
+            ],
+            [
+              -78.9817,
+              -8.2208
+            ]
+          ]
+        },
+        "properties": {}
+      },
+      "active": true,
+      "source": "Ruta referencial; tarifa referencial",
+      "verifiedAt": "2026-11-06",
+      "confidence": "baja"
+    },
+    {
+      "id": "trujillo-huanchaco",
+      "code": "URB-HUANCHACO",
+      "name": "Trujillo - Huanchaco (urbano)",
+      "serviceName": "Líneas urbanas",
+      "companyId": "lineas-huanchaco",
+      "vehicleType": "combi",
+      "category": "urbano",
+      "originPlace": "Trujillo",
+      "destinationPlace": "Huanchaco",
+      "direction": "outbound",
+      "farePen": 3.0,
+      "fareRangePen": [
+        2.5,
+        3.5
+      ],
+      "estimatedMinutes": 35,
+      "distanceKm": 12.0,
+      "boardingStopId": "terminal-santa-cruz",
+      "dropoffStopId": "huanchaco-plaza",
+      "routeGeometry": {
+        "type": "Feature",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [
+              -79.0288,
+              -8.1034
+            ],
+            [
+              -79.08,
+              -8.09
+            ],
+            [
+              -79.1217,
+              -8.0667
+            ]
+          ]
+        },
+        "properties": {}
+      },
+      "active": true,
+      "source": "Ruta referencial; tarifa histórica S/ 2.50–3.50",
+      "verifiedAt": "2026-11-06",
+      "confidence": "media"
+    }
+  ],
+  "routeStops": [
+    {
+      "routeId": "trujillo-puerto-chicama",
+      "sequence": 1,
+      "stopId": "terminal-santa-cruz",
+      "arrivalOffsetMinutes": 0
+    },
+    {
+      "routeId": "trujillo-puerto-chicama",
+      "sequence": 2,
+      "stopId": "ovalo-el-chira",
+      "arrivalOffsetMinutes": 10
+    },
+    {
+      "routeId": "trujillo-puerto-chicama",
+      "sequence": 3,
+      "stopId": "paijan",
+      "arrivalOffsetMinutes": 70
+    },
+    {
+      "routeId": "trujillo-puerto-chicama",
+      "sequence": 4,
+      "stopId": "terminal-puerto-chicama",
+      "arrivalOffsetMinutes": 105
+    },
+    {
+      "routeId": "trujillo-chocope",
+      "sequence": 1,
+      "stopId": "terminal-santa-cruz",
+      "arrivalOffsetMinutes": 0
+    },
+    {
+      "routeId": "trujillo-chocope",
+      "sequence": 2,
+      "stopId": "ovalo-el-chira",
+      "arrivalOffsetMinutes": 10
+    },
+    {
+      "routeId": "trujillo-chocope",
+      "sequence": 3,
+      "stopId": "chocope-terminal",
+      "arrivalOffsetMinutes": 55
+    },
+    {
+      "routeId": "chocope-magdalena-de-cao",
+      "sequence": 1,
+      "stopId": "chocope-terminal",
+      "arrivalOffsetMinutes": 0
+    },
+    {
+      "routeId": "chocope-magdalena-de-cao",
+      "sequence": 2,
+      "stopId": "magdalena-de-cao-plaza",
+      "arrivalOffsetMinutes": 20
+    },
+    {
+      "routeId": "magdalena-de-cao-el-brujo",
+      "sequence": 1,
+      "stopId": "magdalena-de-cao-plaza",
+      "arrivalOffsetMinutes": 0
+    },
+    {
+      "routeId": "magdalena-de-cao-el-brujo",
+      "sequence": 2,
+      "stopId": "el-brujo-complejo",
+      "arrivalOffsetMinutes": 15
+    },
+    {
+      "routeId": "trujillo-huamachuco",
+      "sequence": 1,
+      "stopId": "terrapuerto-trujillo",
+      "arrivalOffsetMinutes": 0
+    },
+    {
+      "routeId": "trujillo-huamachuco",
+      "sequence": 2,
+      "stopId": "ovalo-el-chira",
+      "arrivalOffsetMinutes": 10
+    },
+    {
+      "routeId": "trujillo-huamachuco",
+      "sequence": 3,
+      "stopId": "huamachuco-agencia",
+      "arrivalOffsetMinutes": 270
+    },
+    {
+      "routeId": "trujillo-pacasmayo",
+      "sequence": 1,
+      "stopId": "terminal-santa-cruz",
+      "arrivalOffsetMinutes": 0
+    },
+    {
+      "routeId": "trujillo-pacasmayo",
+      "sequence": 2,
+      "stopId": "paijan",
+      "arrivalOffsetMinutes": 75
+    },
+    {
+      "routeId": "trujillo-pacasmayo",
+      "sequence": 3,
+      "stopId": "pacasmayo-terminal",
+      "arrivalOffsetMinutes": 120
+    }
+  ],
+  "fares": [
+    {
+      "routeId": "trujillo-puerto-chicama",
+      "passengerType": "adult",
+      "amountPen": 12.0,
+      "validFrom": "2025-01-01",
+      "confidence": "media",
+      "notes": "Histórico S/ 5.5–12; promociones ida/vuelta reportadas por operadores"
+    },
+    {
+      "routeId": "trujillo-chocope",
+      "passengerType": "adult",
+      "amountPen": 7.0,
+      "validFrom": "2025-01-01",
+      "confidence": "media",
+      "notes": "Referencial"
+    },
+    {
+      "routeId": "chocope-magdalena-de-cao",
+      "passengerType": "adult",
+      "amountPen": 5.0,
+      "validFrom": "2025-01-01",
+      "confidence": "media",
+      "notes": "Referencial (tramo verificado en duración por elbrujo.pe)"
+    },
+    {
+      "routeId": "magdalena-de-cao-el-brujo",
+      "passengerType": "adult",
+      "amountPen": 7.0,
+      "validFrom": "2025-01-01",
+      "confidence": "media",
+      "notes": "Referencial (tramo verificado en duración por elbrujo.pe)"
+    },
+    {
+      "routeId": "trujillo-huamachuco",
+      "passengerType": "adult",
+      "amountPen": 35.0,
+      "validFrom": "2025-01-01",
+      "confidence": "media",
+      "notes": "Referencial S/ 30–40; Ecotur vende pasaje online vía redBus"
+    },
+    {
+      "routeId": "trujillo-pacasmayo",
+      "passengerType": "adult",
+      "amountPen": 22.0,
+      "validFrom": "2025-01-01",
+      "confidence": "media",
+      "notes": "Referencial S/ 18–28"
+    },
+    {
+      "routeId": "trujillo-salaverry",
+      "passengerType": "adult",
+      "amountPen": 3.0,
+      "validFrom": "2025-01-01",
+      "confidence": "baja",
+      "notes": "Referencial"
+    },
+    {
+      "routeId": "trujillo-huanchaco",
+      "passengerType": "adult",
+      "amountPen": 3.0,
+      "validFrom": "2025-01-01",
+      "confidence": "media",
+      "notes": "Histórico S/ 2.50–3.50"
+    }
+  ],
+  "schedules": [
+    {
+      "routeId": "trujillo-puerto-chicama",
+      "timezone": "America/Lima",
+      "frequencyMinutes": 45,
+      "firstDeparture": "05:30",
+      "lastDeparture": "19:00",
+      "daysOfOperation": "Lunes a domingo",
+      "confidence": "media",
+      "notes": "Frecuencia y horarios referenciales; verificar en terminal Santa Cruz"
+    },
+    {
+      "routeId": "trujillo-chocope",
+      "timezone": "America/Lima",
+      "frequencyMinutes": 20,
+      "firstDeparture": "05:00",
+      "lastDeparture": "21:00",
+      "daysOfOperation": "Lunes a domingo",
+      "confidence": "media",
+      "notes": "Salidas frecuentes por Panamericana Norte"
+    },
+    {
+      "routeId": "chocope-magdalena-de-cao",
+      "timezone": "America/Lima",
+      "frequencyMinutes": 30,
+      "firstDeparture": "06:00",
+      "lastDeparture": "19:00",
+      "daysOfOperation": "Lunes a domingo",
+      "confidence": "media",
+      "notes": "Colectivos desde Chocope"
+    },
+    {
+      "routeId": "magdalena-de-cao-el-brujo",
+      "timezone": "America/Lima",
+      "onDemand": true,
+      "firstDeparture": "08:00",
+      "lastDeparture": "17:00",
+      "daysOfOperation": "Lunes a domingo",
+      "confidence": "alta",
+      "notes": "Mototaxi bajo demanda; atención del sitio ~9:00–17:00"
+    },
+    {
+      "routeId": "trujillo-huamachuco",
+      "timezone": "America/Lima",
+      "frequencyMinutes": 60,
+      "firstDeparture": "06:00",
+      "lastDeparture": "22:00",
+      "daysOfOperation": "Lunes a domingo",
+      "confidence": "media",
+      "notes": "Salidas diarias Ecotur/Tunesa/Levitur; verificar en redBus para fecha específica"
+    },
+    {
+      "routeId": "trujillo-pacasmayo",
+      "timezone": "America/Lima",
+      "frequencyMinutes": 30,
+      "firstDeparture": "05:30",
+      "lastDeparture": "20:00",
+      "daysOfOperation": "Lunes a domingo",
+      "confidence": "media",
+      "notes": "Referencial"
+    },
+    {
+      "routeId": "trujillo-salaverry",
+      "timezone": "America/Lima",
+      "frequencyMinutes": 15,
+      "firstDeparture": "05:30",
+      "lastDeparture": "21:30",
+      "daysOfOperation": "Lunes a domingo",
+      "confidence": "baja",
+      "notes": "Referencial"
+    },
+    {
+      "routeId": "trujillo-huanchaco",
+      "timezone": "America/Lima",
+      "frequencyMinutes": 10,
+      "firstDeparture": "05:30",
+      "lastDeparture": "21:30",
+      "daysOfOperation": "Lunes a domingo",
+      "confidence": "media",
+      "notes": "Referencial"
+    }
+  ],
+  "routeLegs": [
+    {
+      "id": "trujillo-el-brujo",
+      "name": "Trujillo → Chocope → Magdalena de Cao → El Brujo",
+      "totalEstimatedMinutes": 90,
+      "totalFarePen": 19.0,
+      "legs": [
+        {
+          "sequence": 1,
+          "routeId": "trujillo-chocope",
+          "fromStopId": "terminal-santa-cruz",
+          "toStopId": "chocope-terminal",
+          "mode": "bus",
+          "transferStopId": "chocope-terminal",
+          "transferWaitMinutes": 10
+        },
+        {
+          "sequence": 2,
+          "routeId": "chocope-magdalena-de-cao",
+          "fromStopId": "chocope-terminal",
+          "toStopId": "magdalena-de-cao-plaza",
+          "mode": "colectivo",
+          "transferStopId": "magdalena-de-cao-plaza",
+          "transferWaitMinutes": 5
+        },
+        {
+          "sequence": 3,
+          "routeId": "magdalena-de-cao-el-brujo",
+          "fromStopId": "magdalena-de-cao-plaza",
+          "toStopId": "el-brujo-complejo",
+          "mode": "mototaxi",
+          "transferStopId": null,
+          "transferWaitMinutes": 0
+        }
+      ],
+      "source": "elbrujo.pe (itinerario oficial de acceso desde Trujillo)",
+      "verifiedAt": "2026-11-06",
+      "confidence": "alta"
+    }
+  ]
+}

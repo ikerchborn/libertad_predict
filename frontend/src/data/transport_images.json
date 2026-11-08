@@ -1,0 +1,63 @@
+[
+  {
+    "id": "chicama-premium",
+    "name": "Chicama Premium / El Dorado",
+    "type": "Bus interprovincial",
+    "image_url": "/images/transport/interprovincial-bus.svg",
+    "source_url": "https://onibusbrasil.com/Felepoz/13693930",
+    "note": "Imagen representativa; confirma la empresa y el bus en el terminal."
+  },
+  {
+    "id": "ecotur",
+    "name": "Ecotur / Tunesa / Levitur",
+    "type": "Bus interprovincial",
+    "image_url": "/images/transport/interprovincial-bus.svg",
+    "source_url": "https://www.redbus.pe/en/operator/ecotur-bus-tickets",
+    "note": "Imagen representativa; la flota puede variar."
+  },
+  {
+    "id": "colectivos-ascope",
+    "name": "Colectivos Ascope",
+    "type": "Colectivo interurbano",
+    "image_url": "/images/transport/colectivo.svg",
+    "note": "Imagen representativa del colectivo usado en el corredor."
+  },
+  {
+    "id": "mototaxis-magdalena-cao",
+    "name": "Mototaxis Magdalena de Cao",
+    "type": "Mototaxi local",
+    "image_url": "/images/transport/mototaxi.svg",
+    "note": "Imagen representativa del servicio local."
+  },
+  {
+    "id": "ethsa-linea-b",
+    "name": "ETHSA - Línea B",
+    "type": "Microbús urbano",
+    "image_url": "/images/transport/microbus.svg",
+    "source_url": "https://onibusbrasil.com/empresa/empresa-de-transportes-huanchaco",
+    "note": "Imagen representativa; ruta M-06 B."
+  },
+  {
+    "id": "caballito-de-totora-c27b",
+    "name": "Caballito de Totora - C-27 B",
+    "type": "Combi urbana",
+    "image_url": "/images/transport/combi.svg",
+    "source_url": "https://onibusbrasil.com/empresa/empresa-de-transportes-caballito-de-totora",
+    "note": "Imagen representativa del servicio urbano."
+  },
+  {
+    "id": "urbanas-trujillo",
+    "name": "Líneas urbanas de Trujillo",
+    "type": "Combi / Microbús urbano",
+    "image_url": "/images/transport/combi.svg",
+    "note": "Imagen representativa; verifica el código y destino antes de subir."
+  },
+  {
+    "id": "salaverry-express",
+    "name": "Salaverry Express",
+    "type": "Combi urbana",
+    "image_url": "/images/transport/combi.svg",
+    "source_url": "https://onibusbrasil.com/empresa/empresa-de-transportes-salaverry-express",
+    "note": "Imagen representativa del servicio a Salaverry."
+  }
+]

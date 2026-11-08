@@ -1,0 +1,233 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -79.0288,
+            -8.1034
+          ],
+          [
+            -78.9656,
+            -8.0891
+          ],
+          [
+            -78.905,
+            -8.045
+          ],
+          [
+            -79.15,
+            -7.9
+          ],
+          [
+            -79.3006,
+            -7.7331
+          ],
+          [
+            -79.3192,
+            -7.7006
+          ]
+        ]
+      },
+      "properties": {
+        "routeId": "trujillo-puerto-chicama",
+        "name": "Trujillo - Puerto Chicama (Malabrigo)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -79.0288,
+            -8.1034
+          ],
+          [
+            -78.9656,
+            -8.0891
+          ],
+          [
+            -78.905,
+            -8.045
+          ],
+          [
+            -79.2267,
+            -7.7911
+          ]
+        ]
+      },
+      "properties": {
+        "routeId": "trujillo-chocope",
+        "name": "Trujillo - Chocope"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -79.2267,
+            -7.7911
+          ],
+          [
+            -79.27,
+            -7.88
+          ],
+          [
+            -79.298,
+            -7.955
+          ]
+        ]
+      },
+      "properties": {
+        "routeId": "chocope-magdalena-de-cao",
+        "name": "Chocope - Magdalena de Cao (colectivo)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -79.298,
+            -7.955
+          ],
+          [
+            -79.302,
+            -7.93
+          ],
+          [
+            -79.3072,
+            -7.9136
+          ]
+        ]
+      },
+      "properties": {
+        "routeId": "magdalena-de-cao-el-brujo",
+        "name": "Magdalena de Cao - El Brujo (mototaxi)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -79.0092,
+            -8.0864
+          ],
+          [
+            -78.9656,
+            -8.0891
+          ],
+          [
+            -78.78,
+            -7.9
+          ],
+          [
+            -78.45,
+            -7.86
+          ],
+          [
+            -78.0628,
+            -7.815
+          ]
+        ]
+      },
+      "properties": {
+        "routeId": "trujillo-huamachuco",
+        "name": "Trujillo - Huamachuco"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -79.0288,
+            -8.1034
+          ],
+          [
+            -78.905,
+            -8.045
+          ],
+          [
+            -79.0,
+            -7.9
+          ],
+          [
+            -79.3006,
+            -7.7331
+          ],
+          [
+            -79.45,
+            -7.55
+          ],
+          [
+            -79.5694,
+            -7.4006
+          ]
+        ]
+      },
+      "properties": {
+        "routeId": "trujillo-pacasmayo",
+        "name": "Trujillo - Pacasmayo"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -79.0288,
+            -8.1034
+          ],
+          [
+            -79.01,
+            -8.16
+          ],
+          [
+            -78.9817,
+            -8.2208
+          ]
+        ]
+      },
+      "properties": {
+        "routeId": "trujillo-salaverry",
+        "name": "Trujillo - Salaverry (urbano)"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -79.0288,
+            -8.1034
+          ],
+          [
+            -79.08,
+            -8.09
+          ],
+          [
+            -79.1217,
+            -8.0667
+          ]
+        ]
+      },
+      "properties": {
+        "routeId": "trujillo-huanchaco",
+        "name": "Trujillo - Huanchaco (urbano)"
+      }
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Activity, Compass, Hotel, Landmark, Search, Utensils } from "lucide-react";
 import type { Place, PlaceKind } from "@/lib/types";
 
@@ -188,10 +189,13 @@ export function PlacesCatalogClient({ places }: PlacesCatalogClientProps) {
                 key={place.id}
                 className="flex min-w-0 flex-col gap-3 rounded-2xl border border-adobe-border bg-white p-3.5 transition hover:border-moche-300 hover:shadow-sm sm:flex-row sm:items-center sm:p-4"
               >
-                <img
+                <Image
                   src={image}
                   alt=""
+                  width={320}
+                  height={240}
                   loading="lazy"
+                  unoptimized
                   className="h-24 w-full shrink-0 rounded-xl border border-adobe-border/60 bg-neutral-100 object-cover sm:h-20 sm:w-20"
                   onError={(event) => {
                     event.currentTarget.src = fallback;

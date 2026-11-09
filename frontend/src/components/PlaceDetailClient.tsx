@@ -99,6 +99,14 @@ export function PlaceDetailClient({
             ? "Prefiere el horario de atención y las vías concurridas."
             : "Planifica la visita de día y verifica recomendaciones locales antes de salir.";
 
+  if (!isHydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-adobe-bg text-xs text-adobe-muted">
+            Cargando información del viaje...
+      </div>
+    );
+  }
+
   const addRecommendedPlace = (recommendedPlace: Place) => {
     if (!activeTripDay) return;
     addPlaceToDay(activeTripDay.id, recommendedPlace);

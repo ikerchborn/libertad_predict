@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Place } from '@/lib/types';
 
 export interface TripDay {
@@ -200,11 +200,14 @@ function normalizeMultiTripStore(raw: unknown): MultiTripStore | null {
   if (!isPlainObject(raw)) return null;
 
   const candidate = raw as Record<string, unknown>;
-  const trips = Array.isArray(candidate.trips)
-    ? candidate.trips.map(normalizeTrip).filter((trip): trip is TripState => Boolean(trip))
-    : [];
+  if (!Array.isArray(candidate.trips)) return null;
+  const trips = candidate.trips
+    .map(normalizeTrip)
+    .filter((trip): trip is TripState => Boolean(trip));
 
-  if (trips.length === 0) return null;
+  if (trips.length === 0) {
+    return { activeTripId: '', trips: [] };
+  }
 
   const activeTripId = coerceString(candidate.activeTripId, trips[0].id);
   const resolvedActiveId = trips.some((trip) => trip.id === activeTripId)
@@ -296,48 +299,57 @@ function syncTripDays(days: TripDay[], startDate: string, endDate: string): Trip
 export function useTripCache() {
   const [store, setStore] = useState<MultiTripStore>(() => {
     const initial = createDefaultTrip();
-    const baseStore = {
+    return {
       activeTripId: initial.id,
       trips: [initial],
     };
-
-    try {
-      const savedMulti = localStorage.getItem(STORAGE_MULTI_KEY);
-      if (savedMulti) {
-        const parsed = JSON.parse(savedMulti) as unknown;
-        const sanitized = normalizeMultiTripStore(parsed);
-        if (sanitized) {
-          return sanitized;
-        }
-      }
-
-      const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
-      if (legacySaved) {
-        const parsedLegacy = JSON.parse(legacySaved) as unknown;
-        const legacyTrip = normalizeTrip(parsedLegacy);
-        if (legacyTrip) {
-          const migratedTrip: TripState = {
-            ...legacyTrip,
-            id: `trip_migrated_${Date.now()}`,
-            title: legacyTrip.title || `Viaje a ${legacyTrip.destination || 'Trujillo'}`,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          };
-          const newStore: MultiTripStore = {
-            activeTripId: migratedTrip.id,
-            trips: [migratedTrip],
-          };
-          localStorage.setItem(STORAGE_MULTI_KEY, JSON.stringify(newStore));
-          return newStore;
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to hydrate multi-trip cache:', e);
-    }
-
-    return baseStore;
   });
-  const isHydrated = true;
+  const [emptyDraft, setEmptyDraft] = useState(() => createDefaultTrip());
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const savedMulti = localStorage.getItem(STORAGE_MULTI_KEY);
+        if (savedMulti) {
+          const parsed = JSON.parse(savedMulti) as unknown;
+          const sanitized = normalizeMultiTripStore(parsed);
+          if (sanitized) {
+            setStore(sanitized);
+            if (sanitized.trips.length === 0) {
+              setEmptyDraft(createDefaultTrip());
+            }
+            return;
+          }
+        }
+
+        const legacySaved = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacySaved) {
+          const parsedLegacy = JSON.parse(legacySaved) as unknown;
+          const legacyTrip = normalizeTrip(parsedLegacy);
+          if (legacyTrip) {
+            const migratedTrip: TripState = {
+              ...legacyTrip,
+              id: `trip_migrated_${Date.now()}`,
+              title: legacyTrip.title || `Viaje a ${legacyTrip.destination || 'Trujillo'}`,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            };
+            const newStore: MultiTripStore = {
+              activeTripId: migratedTrip.id,
+              trips: [migratedTrip],
+            };
+            localStorage.setItem(STORAGE_MULTI_KEY, JSON.stringify(newStore));
+            setStore(newStore);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to hydrate multi-trip cache:', e);
+      } finally {
+        setIsHydrated(true);
+      }
+    });
+  }, []);
 
   // Save changes to localStorage
   const persistStore = useCallback((nextStore: MultiTripStore): boolean => {
@@ -352,27 +364,24 @@ export function useTripCache() {
   }, []);
 
   // Current active trip
-  const currentTrip = store.trips.find((t) => t.id === store.activeTripId) || store.trips[0] || createDefaultTrip();
+  const currentTrip = store.trips.find((t) => t.id === store.activeTripId) || store.trips[0] || emptyDraft;
 
   // Helper to update active trip
   const updateActiveTrip = useCallback(
     (updater: (prevTrip: TripState) => TripState) => {
       setStore((prevStore) => {
         const tripIndex = prevStore.trips.findIndex((t) => t.id === prevStore.activeTripId);
-        const targetTrip = tripIndex >= 0 ? prevStore.trips[tripIndex] : prevStore.trips[0];
-        if (!targetTrip) return prevStore;
+        const targetIndex = tripIndex >= 0 ? tripIndex : 0;
+        const targetTrip = prevStore.trips[targetIndex];
 
         const updatedTrip = {
-          ...updater(targetTrip),
+          ...updater(targetTrip ?? emptyDraft),
           updatedAt: Date.now(),
         };
 
-        const nextTrips = [...prevStore.trips];
-        if (tripIndex >= 0) {
-          nextTrips[tripIndex] = updatedTrip;
-        } else {
-          nextTrips.push(updatedTrip);
-        }
+        const nextTrips = targetTrip
+          ? prevStore.trips.map((trip, index) => index === targetIndex ? updatedTrip : trip)
+          : [updatedTrip];
 
         const nextStore: MultiTripStore = {
           activeTripId: updatedTrip.id,
@@ -388,7 +397,7 @@ export function useTripCache() {
         return nextStore;
       });
     },
-    []
+    [emptyDraft]
   );
 
   // Multi-Trip Management Actions
@@ -434,17 +443,16 @@ export function useTripCache() {
 
   const deleteAllTrips = useCallback(() => {
     const freshTrip = createDefaultTrip();
+    const emptyStore: MultiTripStore = { activeTripId: '', trips: [] };
     try {
+      localStorage.setItem(STORAGE_MULTI_KEY, JSON.stringify(emptyStore));
       localStorage.removeItem(LEGACY_STORAGE_KEY);
-      localStorage.removeItem(STORAGE_MULTI_KEY);
     } catch (e) {
-      console.warn('Error clearing localStorage:', e);
+      console.warn('Failed to clear saved trips:', e);
     }
-    persistStore({
-      activeTripId: freshTrip.id,
-      trips: [freshTrip],
-    });
-  }, [persistStore]);
+    setEmptyDraft(freshTrip);
+    setStore(emptyStore);
+  }, []);
 
   const duplicateTrip = useCallback(
     (tripId: string) => {
@@ -470,6 +478,12 @@ export function useTripCache() {
 
   const renameTrip = useCallback(
     (tripId: string, newTitle: string) => {
+      if (store.trips.length === 0 && emptyDraft.id === tripId) {
+        const trip = { ...emptyDraft, title: newTitle, updatedAt: Date.now() };
+        persistStore({ activeTripId: trip.id, trips: [trip] });
+        return;
+      }
+
       const nextTrips = store.trips.map((t) =>
         t.id === tripId ? { ...t, title: newTitle, updatedAt: Date.now() } : t
       );
@@ -478,7 +492,7 @@ export function useTripCache() {
         trips: nextTrips,
       });
     },
-    [store, persistStore]
+    [emptyDraft, store, persistStore]
   );
 
   // Single trip manipulation methods (operating on active trip)

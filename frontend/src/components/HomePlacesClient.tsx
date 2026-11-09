@@ -752,7 +752,7 @@ export function HomePlacesClient({
             </h2>
             <p id="delete-all-trips-description" className="mt-2 text-sm leading-relaxed text-adobe-muted">
               Se eliminarán los {savedTrips.length} viajes guardados, incluidas sus notas, días y paradas.
-              Después quedará un itinerario nuevo y vacío para empezar de nuevo.
+              Luego podrás crear un viaje nuevo cuando quieras.
             </p>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
@@ -2451,6 +2451,11 @@ export function HomePlacesClient({
 
               {/* Saved Trips List */}
               <div className="p-4 sm:p-6 overflow-y-auto space-y-3.5 flex-1 divide-y divide-adobe-border/50">
+                {savedTrips.length === 0 && (
+                  <p className="rounded-xl border border-dashed border-adobe-border p-6 text-center text-sm text-adobe-muted">
+                    No tienes viajes guardados. Crea uno nuevo cuando estés listo.
+                  </p>
+                )}
                 {savedTrips.map((st) => {
                   const isCurrent = st.id === trip.id;
                   const totalStops = st.days.reduce((acc, d) => acc + d.places.length, 0);
@@ -2591,13 +2596,15 @@ export function HomePlacesClient({
               <div className="p-4 sm:p-5 border-t border-adobe-border bg-adobe-bg/40 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs text-adobe-muted">
                 <span>Persistido automáticamente en almacenamiento local</span>
                 <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsDeleteAllConfirmOpen(true)}
-                    className="px-3 py-2 rounded-xl border border-red-200 bg-red-50 font-bold text-red-700 hover:bg-red-100 transition cursor-pointer"
-                  >
-                    Eliminar todos
-                  </button>
+                  {savedTrips.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsDeleteAllConfirmOpen(true)}
+                      className="px-3 py-2 rounded-xl border border-red-200 bg-red-50 font-bold text-red-700 hover:bg-red-100 transition cursor-pointer"
+                    >
+                      Eliminar todos
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setIsTripsDrawerOpen(false)}

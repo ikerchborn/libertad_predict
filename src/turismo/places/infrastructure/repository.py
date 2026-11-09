@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import column, insert, select, table
+from sqlalchemy import Date, DateTime, column, insert, select, table
 from sqlalchemy.orm import Session
 
 from turismo.places.infrastructure.models import OfferORM, PlaceDetailORM, PlaceORM
@@ -47,7 +47,7 @@ _locations_table = table(
 _weather_daily_table = table(
     "weather_daily",
     column("location_id"),
-    column("date"),
+    column("date", Date()),
     column("temp_max_c"),
     column("temp_min_c"),
     column("precipitation_mm"),
@@ -55,17 +55,17 @@ _weather_daily_table = table(
     column("uv_index"),
     column("wind_speed_kmh"),
     column("source"),
-    column("fetched_at"),
+    column("fetched_at", DateTime(timezone=True)),
 )
 
 _marine_daily_table = table(
     "marine_daily",
     column("location_id"),
-    column("date"),
+    column("date", Date()),
     column("wave_height_m"),
     column("wave_period_s"),
     column("source"),
-    column("fetched_at"),
+    column("fetched_at", DateTime(timezone=True)),
 )
 
 
@@ -413,4 +413,3 @@ class PlaceRepo:
         if not row:
             return None
         return float(row.score), float(row.confidence)
-

@@ -36,7 +36,11 @@ import { fetchPlaceById, fetchPlaces } from "@/lib/api";
 import { useTripCache } from "@/hooks/useTripCache";
 import { haversineKm, optimizeDayRoute } from "@/lib/routeOptimizer";
 import { fetchOsrmRoute } from "@/lib/osrmService";
-import { getTransitBetweenPlaces, type TransitOption } from "@/lib/transitService";
+import {
+  estimateTransitCostMinutes,
+  getTransitBetweenPlaces,
+  type TransitOption,
+} from "@/lib/transitService";
 import type { MapRouteSegment } from "@/components/PlaceMap";
 import PlaceMap from "@/components/PlaceMap";
 import { getLocalImageUrl, getSafeExternalUrl } from "@/lib/safeUrl";
@@ -225,21 +229,6 @@ export function HomePlacesClient({
       }
 
       setIsCalculating(true);
-      const waypoints: [number, number][] = [];
-
-      if (trip.hotelAnchor) {
-        waypoints.push([trip.hotelAnchor.lat, trip.hotelAnchor.lon]);
-      }
-
-      activeDay.places.forEach((p) => {
-        waypoints.push([p.lat, p.lon]);
-      });
-
-      if (trip.hotelAnchor) {
-        waypoints.push([trip.hotelAnchor.lat, trip.hotelAnchor.lon]);
-      }
-
-      const res = await fetchOsrmRoute(waypoints, trip.travelMode);
       const segmentInputs: Array<{
         routeId?: string;
         legId?: string;
@@ -252,15 +241,18 @@ export function HomePlacesClient({
         estimatedMinutes?: number;
         farePen?: number;
         fareRangePen?: [number, number];
-        walkPhase?: "to-board" | "to-place";
+        routeGeometry?: [number, number][];
+        routeColor?: string;
+        walkPhase?: "to-board" | "transfer" | "to-place";
         isApproximate?: boolean;
       }> = [];
 
       if (trip.hotelAnchor) {
+        const firstPlace = activeDay.places[0];
         segmentInputs.push({
           routeId: `${activeDay.id}-hotel-anchor`,
           origin: [trip.hotelAnchor.lat, trip.hotelAnchor.lon],
-          destination: [activeDay.places[0].lat, activeDay.places[0].lon],
+          destination: [firstPlace.lat, firstPlace.lon],
           mode: trip.travelMode,
           kind: trip.travelMode === "walking" ? "walking" : "driving",
           label: "Ruta desde el hospedaje",
@@ -302,7 +294,21 @@ export function HomePlacesClient({
         });
 
         if (transit.routeLegs?.length) {
-          transit.routeLegs.forEach((leg) => {
+          transit.routeLegs.forEach((leg, legIndex) => {
+            const previousLeg = transit.routeLegs?.[legIndex - 1];
+            if (previousLeg) {
+              segmentInputs.push({
+                routeId,
+                legId,
+                origin: previousLeg.dropoffPoint,
+                destination: leg.boardingPoint,
+                mode: "walking",
+                kind: "walking",
+                label: `Camina entre paraderos: ${previousLeg.dropoffStop} → ${leg.boardingStop}`,
+                tripLabel,
+                walkPhase: "transfer",
+              });
+            }
             segmentInputs.push({
               routeId,
               legId,
@@ -315,6 +321,8 @@ export function HomePlacesClient({
               estimatedMinutes: leg.estimatedMinutes,
               farePen: transit.farePen,
               fareRangePen: transit.fareRangePen,
+              routeGeometry: leg.routeGeometry,
+              routeColor: leg.routeColor,
               isApproximate: true,
             });
           });
@@ -331,6 +339,8 @@ export function HomePlacesClient({
             estimatedMinutes: transit.estimatedMinutes,
             farePen: transit.farePen,
             fareRangePen: transit.fareRangePen,
+            routeGeometry: transit.routeGeometry,
+            routeColor: transit.routeColor,
             isApproximate: true,
           });
         }
@@ -348,18 +358,77 @@ export function HomePlacesClient({
         });
       }
 
+      if (trip.hotelAnchor) {
+        const lastPlace = activeDay.places[activeDay.places.length - 1];
+        segmentInputs.push({
+          routeId: `${activeDay.id}-hotel-return`,
+          origin: [lastPlace.lat, lastPlace.lon],
+          destination: [trip.hotelAnchor.lat, trip.hotelAnchor.lon],
+          mode: trip.travelMode,
+          kind: trip.travelMode === "walking" ? "walking" : "driving",
+          label: "Regreso al hospedaje",
+        });
+      }
+
       const segmentResults = await Promise.all(
-        segmentInputs.map(async (segment) => ({
-          ...segment,
-          route: await fetchOsrmRoute([segment.origin, segment.destination], segment.mode),
-        }))
+        segmentInputs.map(async (segment) => {
+          const routeGeometry = segment.routeGeometry;
+          if (routeGeometry) {
+            const distanceKm = routeGeometry.slice(1).reduce(
+              (total, point, index) =>
+                total +
+                haversineKm(
+                  routeGeometry[index][0],
+                  routeGeometry[index][1],
+                  point[0],
+                  point[1]
+                ),
+              0
+            );
+            return {
+              ...segment,
+              route: {
+                coordinates: routeGeometry,
+                distanceKm,
+                durationMin: segment.estimatedMinutes ?? 0,
+                isFallback: true,
+              },
+            };
+          }
+          return {
+            ...segment,
+            route: await fetchOsrmRoute(
+              [segment.origin, segment.destination],
+              segment.mode
+            ),
+          };
+        })
       );
       if (isMounted) {
-        if (res) {
-          setRouteStats({ km: res.distanceKm, min: res.durationMin });
-        } else {
-          setRouteStats(null);
-        }
+        const stats = segmentResults.reduce(
+          (total, segment) => {
+            const distanceKm =
+              segment.route?.distanceKm ??
+              haversineKm(
+                segment.origin[0],
+                segment.origin[1],
+                segment.destination[0],
+                segment.destination[1]
+              );
+            const estimatedMinutes =
+              segment.kind === "transit"
+                ? segment.estimatedMinutes ?? segment.route?.durationMin ?? 0
+                : segment.kind === "walking"
+                  ? Math.max(1, Math.round((distanceKm / 4.5) * 60))
+                  : segment.route?.durationMin ?? 0;
+            return {
+              km: total.km + distanceKm,
+              min: total.min + estimatedMinutes,
+            };
+          },
+          { km: 0, min: 0 }
+        );
+        setRouteStats(stats);
         setRouteSegments(
           segmentResults
             .map((segment) => ({
@@ -379,6 +448,7 @@ export function HomePlacesClient({
                   : segment.estimatedMinutes,
               farePen: segment.farePen,
               fareRangePen: segment.fareRangePen,
+              routeColor: segment.routeColor,
               walkPhase: segment.walkPhase,
               isApproximate: segment.isApproximate ?? segment.route?.isFallback ?? false,
             }))
@@ -404,7 +474,11 @@ export function HomePlacesClient({
   const handleOptimize = async () => {
     if (!activeDay || activeDay.places.length <= 1) return;
     setIsCalculating(true);
-    const optimized = optimizeDayRoute(activeDay.places, trip.hotelAnchor);
+    const optimized = optimizeDayRoute(
+      activeDay.places,
+      trip.hotelAnchor,
+      (from, to) => estimateTransitCostMinutes(from, to, urbanFare)
+    );
     setDayPlaces(activeDay.id, optimized);
     setIsCalculating(false);
   };
@@ -1408,8 +1482,7 @@ export function HomePlacesClient({
                       <span className="text-adobe-border">•</span>
                       <Clock className="w-3.5 h-3.5 text-adobe-muted" />
                       <span>
-                        ~{routeStats.min} min{" "}
-                        {trip.travelMode === "walking" ? "a pie" : "en auto, referencial"}
+                        ~{routeStats.min} min de traslado, referencial
                       </span>
                     </div>
                   )}
@@ -1450,8 +1523,8 @@ export function HomePlacesClient({
                 </div>
                 {routeStats && routeStats.min >= 90 && (
                   <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-950">
-                    <b>Tiempo en auto referencial:</b> ~{routeStats.min} min para el recorrido por carretera. No es el tiempo de transporte público; revisa cada tramo del itinerario.
-                    </div>
+                    <b>Tiempo total referencial:</b> combina caminatas y transporte estimado; no incluye esperas. Confirma los servicios y horarios antes de viajar.
+                  </div>
                 )}
                 {longDistanceSteps.length > 0 && (
                     <div className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-3 text-xs leading-relaxed text-orange-950">
@@ -1529,13 +1602,15 @@ export function HomePlacesClient({
                             )
                           : 0;
                         const walkMeasure = (
-                          phase: "to-board" | "to-place",
+                          phase: "to-board" | "transfer" | "to-place",
                           from: [number, number],
-                          to: [number, number]
+                          to: [number, number],
+                          phaseIndex = 0
                         ) => {
-                          const segment = legSegments.find(
+                          const phaseSegments = legSegments.filter(
                             (item) => item.kind === "walking" && item.walkPhase === phase
                           );
+                          const segment = phaseSegments[phaseIndex];
                           const distanceKm =
                             segment?.distanceKm ??
                             haversineKm(from[0], from[1], to[0], to[1]);
@@ -1543,7 +1618,9 @@ export function HomePlacesClient({
                             segment?.estimatedMinutes ??
                             Math.max(1, Math.round((distanceKm / 4.5) * 60));
                           return `~${Math.round(distanceKm * 1000)} m · ~${minutes} min${
-                            segment?.isApproximate ? " (aprox.)" : ""
+                            segment?.isApproximate || !segment
+                              ? " (aprox.)"
+                              : ""
                           }`;
                         };
 
@@ -1691,15 +1768,46 @@ export function HomePlacesClient({
                                               ? `cerca de ${place.name}; ubicación exacta por confirmar.`
                                               : `${walkMeasure("to-board", [place.lat, place.lon], transit.boardingPoint)} desde ${place.name} hasta ${transit.boardingStop}.`}
                                           </p>
-                                          <p>
-                                            <b>Aborda:</b> {transit.serviceName} ({transit.code}) en <b>{transit.boardingStop}</b>. Cartel: <b>{transit.headsign ?? "no verificado"}</b>.
-                                          </p>
-                                          <p>
-                                            <b>Baja:</b>{" "}
-                                            {alightingWalkKm < 0.05
-                                              ? `punto referencial junto a ${nextPlace?.name ?? "tu destino"}; confirma con el cobrador.`
-                                              : `en ${transit.dropoffStop} tras ~${transit.estimatedMinutes} min de bus.`}
-                                          </p>
+                                          {transit.routeLegs?.length ? (
+                                            transit.routeLegs.map((routeLeg, routeLegIndex) => {
+                                              const nextRouteLeg = transit.routeLegs?.[routeLegIndex + 1];
+                                              return (
+                                                <React.Fragment key={`${routeLeg.code}-${routeLegIndex}`}>
+                                                  <p>
+                                                    <b>{routeLegIndex === 0 ? "Aborda" : `Transbordo ${routeLegIndex}`}:</b>{" "}
+                                                    {routeLeg.serviceName} ({routeLeg.code}) en <b>{routeLeg.boardingStop}</b>.
+                                                  </p>
+                                                  <p>
+                                                    <b>Baja:</b> en {routeLeg.dropoffStop} tras ~{routeLeg.estimatedMinutes} min.
+                                                  </p>
+                                                  {nextRouteLeg && (
+                                                    <p>
+                                                      <b>Conexión a pie:</b>{" "}
+                                                      {walkMeasure(
+                                                        "transfer",
+                                                        routeLeg.dropoffPoint,
+                                                        nextRouteLeg.boardingPoint,
+                                                        routeLegIndex - 1
+                                                      )}{" "}
+                                                      hasta {nextRouteLeg.boardingStop}.
+                                                    </p>
+                                                  )}
+                                                </React.Fragment>
+                                              );
+                                            })
+                                          ) : (
+                                            <>
+                                              <p>
+                                                <b>Aborda:</b> {transit.serviceName} ({transit.code}) en <b>{transit.boardingStop}</b>. Cartel: <b>{transit.headsign ?? "no verificado"}</b>.
+                                              </p>
+                                              <p>
+                                                <b>Baja:</b>{" "}
+                                                {alightingWalkKm < 0.05
+                                                  ? `punto referencial junto a ${nextPlace?.name ?? "tu destino"}; confirma con el cobrador.`
+                                                  : `en ${transit.dropoffStop} tras ~${transit.estimatedMinutes} min de bus.`}
+                                              </p>
+                                            </>
+                                          )}
                                           {alightingWalkKm >= 0.05 && <p>
                                             <b>Camina:</b> {walkMeasure("to-place", transit.dropoffPoint, [nextPlace?.lat ?? place.lat, nextPlace?.lon ?? place.lon])} hasta {nextPlace?.name ?? "la siguiente visita"}.
                                           </p>}

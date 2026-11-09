@@ -14,55 +14,64 @@ export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: numb
   return R * c;
 }
 
-function calculateTourDistance(places: Place[], anchor?: Place | null): number {
-  if (places.length === 0) return 0;
-  let total = 0;
-  let prev = anchor || places[0];
-
-  const startIndex = anchor ? 0 : 1;
-  for (let i = startIndex; i < places.length; i++) {
-    total += haversineKm(prev.lat, prev.lon, places[i].lat, places[i].lon);
-    prev = places[i];
-  }
-
-  if (anchor) {
-    total += haversineKm(prev.lat, prev.lon, anchor.lat, anchor.lon);
-  }
-  return total;
-}
-
 /**
- * Optimizes a day itinerary using Nearest Neighbour + 2-opt local search (TREK logic).
- * If a hotelAnchor is provided, the route starts and returns to the hotel.
+ * Optimizes a day itinerary using Nearest Neighbour + 2-opt.
+ * Pass a multimodal edge cost to optimize by travel time instead of straight-line distance.
  */
-export function optimizeDayRoute(places: Place[], hotelAnchor?: Place | null): Place[] {
-  if (places.length <= 2) return [...places];
+export function optimizeDayRoute(
+  places: Place[],
+  hotelAnchor?: Place | null,
+  edgeCost: (from: Place, to: Place) => number = (from, to) =>
+    haversineKm(from.lat, from.lon, to.lat, to.lon)
+): Place[] {
+  if (places.length <= 1) return [...places];
 
-  const pool = [...places];
-  const ordered: Place[] = [];
-
-  // Step 1: Nearest Neighbour initialization
-  let current = hotelAnchor || pool.shift()!;
-  if (!hotelAnchor && current) {
-    ordered.push(current);
-  }
-
-  while (pool.length > 0) {
-    let bestIdx = 0;
-    let minDist = Infinity;
-    for (let i = 0; i < pool.length; i++) {
-      const d = haversineKm(current.lat, current.lon, pool[i].lat, pool[i].lon);
-      if (d < minDist) {
-        minDist = d;
-        bestIdx = i;
+  const costs = places.map((from) =>
+    places.map((to) => edgeCost(from, to))
+  );
+  const anchorCosts = hotelAnchor
+    ? {
+        from: places.map((place) => edgeCost(hotelAnchor, place)),
+        to: places.map((place) => edgeCost(place, hotelAnchor)),
       }
+    : null;
+
+  const routeCost = (route: number[]): number => {
+    let total = anchorCosts ? anchorCosts.from[route[0]] : 0;
+    for (let index = 1; index < route.length; index++) {
+      total += costs[route[index - 1]][route[index]];
     }
-    const [nextPlace] = pool.splice(bestIdx, 1);
-    ordered.push(nextPlace);
-    current = nextPlace;
+    if (anchorCosts) total += anchorCosts.to[route[route.length - 1]];
+    return total;
+  };
+
+  const buildNearestNeighborRoute = (firstIndex: number): number[] => {
+    const remaining = new Set(places.map((_, index) => index));
+    const route = [firstIndex];
+    remaining.delete(firstIndex);
+
+    while (remaining.size > 0) {
+      const current = route[route.length - 1];
+      let next = -1;
+      let lowestCost = Infinity;
+      for (const candidate of remaining) {
+        if (costs[current][candidate] < lowestCost) {
+          next = candidate;
+          lowestCost = costs[current][candidate];
+        }
+      }
+      route.push(next);
+      remaining.delete(next);
+    }
+    return route;
+  };
+
+  let ordered = buildNearestNeighborRoute(0);
+  for (let firstIndex = 1; firstIndex < places.length; firstIndex++) {
+    const candidate = buildNearestNeighborRoute(firstIndex);
+    if (routeCost(candidate) < routeCost(ordered)) ordered = candidate;
   }
 
-  // Step 2: 2-opt Heuristic optimization to untangle crossing paths
   let improved = true;
   let iterations = 0;
   const maxIterations = 60;
@@ -73,18 +82,14 @@ export function optimizeDayRoute(places: Place[], hotelAnchor?: Place | null): P
 
     for (let i = 0; i < ordered.length - 1; i++) {
       for (let j = i + 1; j < ordered.length; j++) {
-        // Reverse segment [i, j]
         const candidate = [
           ...ordered.slice(0, i),
           ...ordered.slice(i, j + 1).reverse(),
           ...ordered.slice(j + 1),
         ];
 
-        const oldDist = calculateTourDistance(ordered, hotelAnchor);
-        const newDist = calculateTourDistance(candidate, hotelAnchor);
-
-        if (newDist + 0.0001 < oldDist) {
-          ordered.splice(0, ordered.length, ...candidate);
+        if (routeCost(candidate) + 0.0001 < routeCost(ordered)) {
+          ordered = candidate;
           improved = true;
           break;
         }
@@ -93,5 +98,5 @@ export function optimizeDayRoute(places: Place[], hotelAnchor?: Place | null): P
     }
   }
 
-  return ordered;
+  return ordered.map((index) => places[index]);
 }

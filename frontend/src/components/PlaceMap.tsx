@@ -17,7 +17,7 @@ export interface MapRouteSegment {
   estimatedMinutes?: number;
   farePen?: number;
   fareRangePen?: [number, number];
-  walkPhase?: 'to-board' | 'to-place';
+  walkPhase?: 'to-board' | 'transfer' | 'to-place';
   isApproximate?: boolean;
 }
 
@@ -78,6 +78,7 @@ export default function PlaceMap({
       estimatedMinutes?: number;
       farePen?: number;
       fareRangePen?: [number, number];
+      routeColor?: string;
     }>
   >((routes, segment, index) => {
     const key = segment.routeId ?? segment.routeColor ?? `segment-${index}`;
@@ -94,6 +95,7 @@ export default function PlaceMap({
         existing.estimatedMinutes = segment.estimatedMinutes;
         existing.farePen = segment.farePen;
         existing.fareRangePen = segment.fareRangePen;
+        existing.routeColor = segment.routeColor;
       }
       return routes;
     }
@@ -106,6 +108,7 @@ export default function PlaceMap({
       estimatedMinutes: segment.estimatedMinutes,
       farePen: segment.farePen,
       fareRangePen: segment.fareRangePen,
+      routeColor: segment.routeColor,
     });
     return routes;
   }, []);
@@ -344,32 +347,33 @@ export default function PlaceMap({
             routeLayer = L.layerGroup();
             routeLayers.set(routeKey, routeLayer);
           }
-          const color = segment.kind === 'walking'
-            ? '#2563EB'
-            : segment.kind === 'transit'
-              ? '#D97706'
-              : '#64748B';
+          const color =
+            segment.kind === 'walking'
+              ? '#1D4ED8'
+              : segment.kind === 'transit'
+                ? segment.routeColor ?? '#D97706'
+                : '#64748B';
           const legClass = `map-route-leg-${segment.legId ?? 'other'}`;
           L.polyline(segment.coordinates, {
             color: '#fff',
-            weight: segment.kind === 'transit' ? 11 : 8,
-            opacity: 0.96,
+            weight: segment.kind === 'transit' ? 9 : 6,
+            opacity: 0.85,
             dashArray: segment.kind === 'walking'
-              ? '12 10'
+              ? '4 7'
               : segment.isApproximate
-                ? '3 8'
+                ? '6 7'
                 : undefined,
             className: `map-route-casing ${legClass}`,
             lineJoin: 'round',
           }).addTo(routeLayer);
           const line = L.polyline(segment.coordinates, {
             color,
-            weight: segment.kind === 'transit' ? 7 : 5,
+            weight: segment.kind === 'transit' ? 5 : 3,
             opacity: 0.9,
             dashArray: segment.kind === 'walking'
-              ? '12 10'
+              ? '4 7'
               : segment.isApproximate
-                ? '3 8'
+                ? '6 7'
                 : undefined,
             className: `map-route-line map-route-${segment.kind} ${legClass}`,
             lineJoin: 'round',
@@ -640,7 +644,8 @@ export default function PlaceMap({
                     aria-label={`${isVisible ? 'Ocultar' : 'Mostrar'} tramo ${index + 1}: ${route.label}`}
                   />
                   <span
-                    className="map-route-swatch map-route-trip-swatch"
+                    className="map-route-swatch"
+                    style={{ background: route.routeColor ?? '#D97706' }}
                     aria-hidden="true"
                   />
                   <span className="map-route-option-label">

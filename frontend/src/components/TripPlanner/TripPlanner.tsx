@@ -5,7 +5,10 @@ import type { Place } from '@/lib/types';
 import { useTripCache } from '@/hooks/useTripCache';
 import { optimizeDayRoute } from '@/lib/routeOptimizer';
 import { fetchOsrmRoute, type OsrmRouteResult } from '@/lib/osrmService';
-import { getTransitBetweenPlaces } from '@/lib/transitService';
+import {
+  estimateTransitCostMinutes,
+  getTransitBetweenPlaces,
+} from '@/lib/transitService';
 import { getTransportImage } from '@/lib/transportImages';
 import {
   Calendar,
@@ -124,7 +127,11 @@ export default function TripPlanner({
     if (!activeDay || activeDay.places.length <= 1) return;
     setIsCalculating(true);
 
-    const optimized = optimizeDayRoute(activeDay.places, trip.hotelAnchor);
+    const optimized = optimizeDayRoute(
+      activeDay.places,
+      trip.hotelAnchor,
+      (from, to) => estimateTransitCostMinutes(from, to, urbanFare)
+    );
     setDayPlaces(activeDay.id, optimized);
     await updateRouteGeometry(optimized);
     setIsCalculating(false);

@@ -20,6 +20,10 @@
   transition: opacity 140ms ease;
 }
 
+.map-shell .map-walk-marker.map-route-muted {
+  opacity: 0.35 !important;
+}
+
 .map-shell .map-route-line,
 .map-shell .map-route-casing {
   transition: opacity 140ms ease;

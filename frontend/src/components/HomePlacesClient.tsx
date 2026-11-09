@@ -28,6 +28,7 @@ import {
   ExternalLink,
   Globe,
   Phone,
+  BusFront,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -144,6 +145,9 @@ export function HomePlacesClient({
   const [isDeleteAllConfirmOpen, setIsDeleteAllConfirmOpen] = useState(false);
   const [placeToAdd, setPlaceToAdd] = useState<Place | null>(null);
   const [selectedMapPlace, setSelectedMapPlace] = useState<Place | null>(null);
+  const [selectedTransitRoute, setSelectedTransitRoute] =
+    useState<MapRouteSegment | null>(null);
+  const [transitImageFailed, setTransitImageFailed] = useState(false);
   const [selectedMapPlaceDetail, setSelectedMapPlaceDetail] =
     useState<PlaceDetail | null>(null);
   const [isSelectedMapPlaceExpanded, setIsSelectedMapPlaceExpanded] =
@@ -299,6 +303,7 @@ export function HomePlacesClient({
         badgeColor?: string;
         textColor?: string;
         vehicleType?: MapRouteSegment["vehicleType"];
+        vehicleImageUrl?: string;
         boardingStop?: string;
         dropoffStop?: string;
         boardingLandmarkHint?: string;
@@ -422,6 +427,7 @@ export function HomePlacesClient({
               badgeColor: leg.badgeColor,
               textColor: leg.textColor,
               vehicleType: leg.vehicleType,
+              vehicleImageUrl: transit.vehicleImageUrl,
               boardingStop: leg.boardingStop,
               dropoffStop: leg.dropoffStop,
               boardingLandmarkHint: leg.boardingLandmarkHint,
@@ -451,6 +457,7 @@ export function HomePlacesClient({
             badgeColor: transit.badgeColor,
             textColor: transit.textColor,
             vehicleType: transit.vehicleType,
+            vehicleImageUrl: transit.vehicleImageUrl,
             boardingStop: transit.boardingStop,
             dropoffStop: transit.dropoffStop,
             boardingLandmarkHint: transit.boardingLandmarkHint,
@@ -593,6 +600,7 @@ export function HomePlacesClient({
               badgeColor: segment.badgeColor,
               textColor: segment.textColor,
               vehicleType: segment.vehicleType,
+              vehicleImageUrl: segment.vehicleImageUrl,
               boardingStop: segment.boardingStop,
               dropoffStop: segment.dropoffStop,
               boardingLandmarkHint: segment.boardingLandmarkHint,
@@ -757,10 +765,21 @@ export function HomePlacesClient({
   };
 
   const handleMapPlaceSelect = (place: Place) => {
+    setSelectedTransitRoute(null);
     setSelectedMapPlace(place);
     setSelectedMapPlaceDetail(null);
     setIsSelectedMapPlaceExpanded(true);
     setSelectedMapPlaceDetailStatus("loading");
+  };
+
+  const handleMapTransitSelect = (segment: MapRouteSegment) => {
+    setSelectedTransitRoute(segment);
+    setTransitImageFailed(false);
+    setSelectedLegId(segment.legId ?? null);
+    setSelectedMapPlace(null);
+    setSelectedMapPlaceDetail(null);
+    setIsSelectedMapPlaceExpanded(false);
+    setSelectedMapPlaceDetailStatus("idle");
   };
 
   useEffect(() => {
@@ -2157,7 +2176,9 @@ export function HomePlacesClient({
                     <div
                       id="planner-map"
                       className={`planner-map-layout ${
-                        selectedMapPlaceInfo ? "has-place-detail" : ""
+                        selectedMapPlaceInfo || selectedTransitRoute
+                          ? "has-place-detail"
+                          : ""
                       }`}
                     >
                       <PlaceMap
@@ -2167,6 +2188,7 @@ export function HomePlacesClient({
                         hotelAnchor={trip.hotelAnchor}
                         selectedLegId={selectedLegId}
                         onSelectLeg={handleMapLegSelect}
+                        onSelectTransitRoute={handleMapTransitSelect}
                         onSelectPlace={handleMapPlaceSelect}
                         simplified={compactMode}
                       />
@@ -2440,6 +2462,134 @@ export function HomePlacesClient({
                           )}
                         </div>
                       </div>
+                        </section>
+                      )}
+                      {selectedTransitRoute && (
+                        <section
+                          id="map-transit-detail"
+                          aria-label="Ficha del transporte seleccionado"
+                          aria-live="polite"
+                          className="planner-map-place-detail flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-adobe-border bg-white shadow-sm"
+                        >
+                          <div className="relative h-32 shrink-0 overflow-hidden bg-slate-900">
+                            {getLocalImageUrl(selectedTransitRoute.vehicleImageUrl) && !transitImageFailed ? (
+                              <img
+                                src={getLocalImageUrl(selectedTransitRoute.vehicleImageUrl) ?? undefined}
+                                alt={`Unidad de ${selectedTransitRoute.companyName ?? selectedTransitRoute.label}`}
+                                className="h-full w-full object-cover"
+                                onError={() => setTransitImageFailed(true)}
+                              />
+                            ) : (
+                              <div
+                                className="flex h-full items-center justify-between gap-3 px-5 text-white"
+                                style={{
+                                  background: `linear-gradient(125deg, ${selectedTransitRoute.badgeColor ?? selectedTransitRoute.routeColor ?? "#0369A1"}, #0f172a)`,
+                                }}
+                              >
+                                <div className="min-w-0">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/75">
+                                    Transporte Público Urbano de Trujillo
+                                  </span>
+                                  <strong className="mt-1 block truncate text-xl">
+                                    {selectedTransitRoute.routeCode ?? selectedTransitRoute.label.split(":")[0]}
+                                  </strong>
+                                  <span className="block truncate text-xs text-white/85">
+                                    {selectedTransitRoute.companyName ?? "Servicio de transporte"}
+                                  </span>
+                                </div>
+                                <BusFront className="h-12 w-12 shrink-0 text-white/90" aria-hidden="true" />
+                              </div>
+                            )}
+                            <span
+                              className="absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-extrabold shadow-sm"
+                              style={{
+                                backgroundColor: selectedTransitRoute.badgeColor ?? selectedTransitRoute.routeColor ?? "#0369A1",
+                                color: selectedTransitRoute.textColor ?? "#fff",
+                              }}
+                            >
+                              {selectedTransitRoute.vehicleType === "micro"
+                                ? "Microbús"
+                                : selectedTransitRoute.vehicleType === "combi"
+                                  ? "Combi"
+                                  : selectedTransitRoute.vehicleType ?? "Transporte"}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Cerrar ficha de transporte"
+                              onClick={() => {
+                                setSelectedTransitRoute(null);
+                                setSelectedLegId(null);
+                                setTransitImageFailed(false);
+                              }}
+                              className="absolute right-2 top-2 rounded-full bg-black/45 p-1.5 text-white hover:bg-black/65"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+                            <div>
+                              <h3 className="text-sm font-bold text-adobe-dark">
+                                {selectedTransitRoute.companyName ?? selectedTransitRoute.label}
+                              </h3>
+                              <p className="text-[11px] text-adobe-muted">
+                                Ruta {selectedTransitRoute.routeCode ?? selectedTransitRoute.label.split(":")[0]}
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="rounded-lg bg-adobe-bg p-2">
+                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Pasaje</span>
+                                <strong className="mt-0.5 block text-adobe-dark">
+                                  {selectedTransitRoute.farePen != null
+                                    ? `S/ ${selectedTransitRoute.farePen.toFixed(2)}`
+                                    : "No disponible"}
+                                </strong>
+                              </div>
+                              <div className="rounded-lg bg-adobe-bg p-2">
+                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Espera media estimada</span>
+                                <strong className="mt-0.5 block text-adobe-dark">
+                                  {selectedTransitRoute.waitMinutes != null
+                                    ? `~${selectedTransitRoute.waitMinutes} min`
+                                    : "No disponible"}
+                                </strong>
+                              </div>
+                              <div className="rounded-lg bg-adobe-bg p-2">
+                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Tiempo a bordo</span>
+                                <strong className="mt-0.5 block text-adobe-dark">
+                                  {selectedTransitRoute.estimatedMinutes != null
+                                    ? `~${selectedTransitRoute.estimatedMinutes} min`
+                                    : "No disponible"}
+                                </strong>
+                              </div>
+                              <div className="rounded-lg bg-adobe-bg p-2">
+                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Distancia a bordo</span>
+                                <strong className="mt-0.5 block text-adobe-dark">
+                                  {selectedTransitRoute.distanceKm != null
+                                    ? `${selectedTransitRoute.distanceKm.toFixed(1)} km`
+                                    : "No disponible"}
+                                </strong>
+                              </div>
+                            </div>
+                            <div className="space-y-2 text-xs">
+                              <div className="rounded-lg border border-adobe-border p-2.5">
+                                <span className="block text-[10px] font-bold uppercase text-moche-700">Abordaje</span>
+                                <strong className="mt-0.5 block text-adobe-dark">
+                                  {selectedTransitRoute.boardingStop ?? "Paradero no especificado"}
+                                </strong>
+                                <span className="mt-0.5 block leading-relaxed text-adobe-muted">
+                                  {selectedTransitRoute.boardingLandmarkHint ?? "Confirma el punto exacto antes de abordar."}
+                                </span>
+                              </div>
+                              <div className="rounded-lg border border-adobe-border p-2.5">
+                                <span className="block text-[10px] font-bold uppercase text-moche-700">Descenso</span>
+                                <strong className="mt-0.5 block text-adobe-dark">
+                                  {selectedTransitRoute.dropoffStop ?? "Paradero no especificado"}
+                                </strong>
+                                <span className="mt-0.5 block leading-relaxed text-adobe-muted">
+                                  {selectedTransitRoute.dropoffLandmarkHint ?? "Confirma el punto de descenso con el conductor."}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </section>
                       )}
                     </div>

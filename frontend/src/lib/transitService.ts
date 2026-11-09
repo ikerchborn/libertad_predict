@@ -90,6 +90,7 @@ interface TruxdiRoute {
   estimated_minutes?: number | null;
   badge_color?: string | null;
   text_color?: string | null;
+  vehicle_image_url?: string | null;
   fare: { standard: number | null; currency: 'PEN' };
   geometry_ida: [number, number][];
   geometry_vuelta: [number, number][];
@@ -134,6 +135,7 @@ export interface TransitOption {
   routeGeometry?: [number, number][];
   routeGeometryVerified?: boolean;
   routeDistanceKm?: number;
+  vehicleImageUrl?: string;
   warning?: string;
   routeColor?: string;
   routeCode?: string;
@@ -439,6 +441,7 @@ function getTruxdiTransitCandidates(
               routeGeometry,
               routeGeometryVerified: geometryVerified,
               routeDistanceKm,
+              vehicleImageUrl: route.vehicle_image_url ?? undefined,
               routeColor: badgeColor,
               routeCode,
               companyName: route.company_name ?? route.route_name ?? routeCode,

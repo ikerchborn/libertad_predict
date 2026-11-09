@@ -23,6 +23,7 @@ export interface MapRouteSegment {
   waitMinutes?: number;
   farePen?: number;
   fareRangePen?: [number, number];
+  vehicleImageUrl?: string;
   boardingStop?: string;
   dropoffStop?: string;
   boardingLandmarkHint?: string;
@@ -41,6 +42,7 @@ interface PlaceMapProps {
   routeSegments?: MapRouteSegment[];
   selectedLegId?: string | null;
   onSelectLeg?: (legId: string) => void;
+  onSelectTransitRoute?: (segment: MapRouteSegment) => void;
   onSelectPlace?: (place: Place) => void;
   simplified?: boolean;
 }
@@ -54,6 +56,7 @@ export default function PlaceMap({
   routeSegments = [],
   selectedLegId = null,
   onSelectLeg,
+  onSelectTransitRoute,
   onSelectPlace,
   simplified = false,
 }: PlaceMapProps) {
@@ -62,6 +65,7 @@ export default function PlaceMap({
   const routeLayersRef = useRef<Map<string, LayerGroup>>(new Map());
   const itineraryMarkersLayerRef = useRef<LayerGroup | null>(null);
   const onSelectLegRef = useRef(onSelectLeg);
+  const onSelectTransitRouteRef = useRef(onSelectTransitRoute);
   const onSelectPlaceRef = useRef(onSelectPlace);
   const hiddenRouteKeysRef = useRef<Set<string>>(new Set());
   const [mapError, setMapError] = useState<string | null>(null);
@@ -75,6 +79,10 @@ export default function PlaceMap({
   useEffect(() => {
     onSelectLegRef.current = onSelectLeg;
   }, [onSelectLeg]);
+
+  useEffect(() => {
+    onSelectTransitRouteRef.current = onSelectTransitRoute;
+  }, [onSelectTransitRoute]);
 
   useEffect(() => {
     onSelectPlaceRef.current = onSelectPlace;
@@ -177,6 +185,58 @@ export default function PlaceMap({
       }
 
       const L = await import('leaflet');
+      const createWalkingMarker = (
+        coords: [number, number][],
+        distanceMeters: number,
+        durationMinutes: number,
+        legId?: string
+      ) => {
+        if (coords.length < 2) return null;
+
+        const lengths = coords.slice(1).map((point, pointIndex) =>
+          L.latLng(coords[pointIndex][0], coords[pointIndex][1])
+            .distanceTo(L.latLng(point[0], point[1]))
+        );
+        const halfway = lengths.reduce((total, length) => total + length, 0) / 2;
+        let traversed = 0;
+        let midpoint = coords[0];
+        for (let pointIndex = 0; pointIndex < lengths.length; pointIndex += 1) {
+          if (traversed + lengths[pointIndex] >= halfway) {
+            const fraction = lengths[pointIndex] > 0
+              ? (halfway - traversed) / lengths[pointIndex]
+              : 0;
+            const start = coords[pointIndex];
+            const end = coords[pointIndex + 1];
+            midpoint = [
+              start[0] + (end[0] - start[0]) * fraction,
+              start[1] + (end[1] - start[1]) * fraction,
+            ];
+            break;
+          }
+          traversed += lengths[pointIndex];
+        }
+
+        const icon = L.divIcon({
+          className: `map-walk-marker map-route-leg-${legId ?? 'other'}`,
+          html: `<div style="display:flex;align-items:center;gap:5px;width:max-content;padding:6px 8px;border:1px solid #e2e8f0;border-radius:9999px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.18);color:#334155;transition:opacity 140ms ease">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="m10 22 2-7-3-3 2-5 4 3 3 1M9 12l-4 3-2 4M14 15l4 2 2 4"/></svg>
+            <span style="font:600 10px/1 ui-sans-serif,system-ui,sans-serif;white-space:nowrap">${distanceMeters} m · ${durationMinutes} min</span>
+          </div>`,
+          iconSize: [130, 32],
+          iconAnchor: [65, 16],
+        });
+        const marker = L.marker(midpoint, {
+          icon,
+          keyboard: true,
+          title: `Caminata${legId ? ` del tramo ${legId}` : ''}: ${distanceMeters} m, ${durationMinutes} min`,
+          alt: `Caminata: ${distanceMeters} metros, ${durationMinutes} minutos`,
+          zIndexOffset: 500,
+        });
+        marker.on('click', () => {
+          if (legId) onSelectLegRef.current?.(legId);
+        });
+        return marker;
+      };
 
       if (!isMounted || !mapContainerRef.current) return;
 
@@ -421,6 +481,11 @@ export default function PlaceMap({
             className: `map-route-line map-route-${segment.kind} ${legClass}`,
             lineJoin: 'round',
           }).addTo(routeLayer);
+          if (segment.kind === 'transit') {
+            line.on('click', () => {
+              onSelectTransitRouteRef.current?.(segment);
+            });
+          }
           const routeTooltip = document.createElement('div');
           routeTooltip.className = 'flex flex-col gap-1';
           if (segment.kind === 'transit') {
@@ -441,6 +506,16 @@ export default function PlaceMap({
               : '');
           routeTooltip.appendChild(routeDescription);
           line.bindTooltip(routeTooltip, { sticky: true });
+          if (segment.kind === 'walking' && segment.coordinates.length > 1) {
+            const distanceMeters = Math.round((segment.distanceKm ?? 0) * 1000);
+            const durationMinutes = segment.estimatedMinutes ?? 0;
+            createWalkingMarker(
+              segment.coordinates,
+              distanceMeters,
+              durationMinutes,
+              segment.legId
+            )?.addTo(routeLayer);
+          }
           if (segment.kind === 'transit' && segment.estimatedMinutes != null) {
             const midpoint =
               segment.coordinates[Math.floor(segment.coordinates.length / 2)];
@@ -493,7 +568,7 @@ export default function PlaceMap({
             boardingMarker
               .bindTooltip(boardingTooltip)
               .on('click', () => {
-                if (segment.legId) onSelectLegRef.current?.(segment.legId);
+                onSelectTransitRouteRef.current?.(segment);
               });
             const dropoffMarker = L.marker(end, {
               icon: endpointIconForLeaflet('Baja'),
@@ -510,7 +585,7 @@ export default function PlaceMap({
             dropoffMarker
               .bindTooltip(dropoffTooltip)
               .on('click', () => {
-                if (segment.legId) onSelectLegRef.current?.(segment.legId);
+                onSelectTransitRouteRef.current?.(segment);
               });
           }
           segment.coordinates.forEach(([lat, lon]) => bounds.extend(L.latLng(lat, lon)));

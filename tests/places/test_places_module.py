@@ -10,6 +10,7 @@ from turismo.places.api import router as places_router
 from turismo.places.domain.classification import classify_place
 from turismo.places.domain.models import CoastType, Place, PlaceCategory, PlaceKind
 from turismo.places.infrastructure.repository import PlaceRepo
+from turismo.shared.db import Base
 from turismo.weather.infrastructure.models import (
     LocationORM,
     MarineDailyORM,
@@ -48,9 +49,7 @@ def test_places_router_exposes_expected_endpoints() -> None:
 
 def test_place_repo_parses_sqlite_weather_and_marine_dates() -> None:
     engine = create_engine("sqlite:///:memory:")
-    LocationORM.__table__.create(engine)
-    WeatherDailyORM.__table__.create(engine)
-    MarineDailyORM.__table__.create(engine)
+    Base.metadata.create_all(engine)
     target_date = date(2026, 11, 8)
     fetched_at = datetime(2026, 11, 4, 4, 5, 14, 350989, tzinfo=UTC)
 

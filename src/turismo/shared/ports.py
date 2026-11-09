@@ -56,6 +56,8 @@ class PlaceRepository(Protocol):
         query_date: date,
         category: PlaceCategory | None = None,
         kind: PlaceKind | None = None,
+        zone: str | None = None,
+        query: str | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> list[tuple[Place, float | None, float | None]]: ...

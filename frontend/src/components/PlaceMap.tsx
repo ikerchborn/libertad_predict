@@ -78,27 +78,30 @@ function createVehicleGlyph(vehicleType?: MapRouteSegment['vehicleType']): SVGSV
   return icon;
 }
 
-function createWalkingMarker(
+function createWalkingRouteMarker(
   L: LeafletModule,
-  segment: MapRouteSegment,
+  coordinates: [number, number][],
+  distanceMeters: number,
+  durationMinutes: number,
+  legId?: string,
   onSelectLeg?: (legId: string) => void
 ): Marker | null {
-  if (segment.coordinates.length < 2) return null;
+  if (coordinates.length < 2) return null;
 
-  const lengths = segment.coordinates.slice(1).map((point, index) =>
-    L.latLng(segment.coordinates[index][0], segment.coordinates[index][1])
+  const lengths = coordinates.slice(1).map((point, index) =>
+    L.latLng(coordinates[index][0], coordinates[index][1])
       .distanceTo(L.latLng(point[0], point[1]))
   );
   const halfway = lengths.reduce((total, length) => total + length, 0) / 2;
   let traversed = 0;
-  let midpoint = segment.coordinates[0];
+  let midpoint = coordinates[0];
   for (let index = 0; index < lengths.length; index += 1) {
     if (traversed + lengths[index] >= halfway) {
       const fraction = lengths[index] > 0
         ? (halfway - traversed) / lengths[index]
         : 0;
-      const start = segment.coordinates[index];
-      const end = segment.coordinates[index + 1];
+      const start = coordinates[index];
+      const end = coordinates[index + 1];
       midpoint = [
         start[0] + (end[0] - start[0]) * fraction,
         start[1] + (end[1] - start[1]) * fraction,
@@ -108,37 +111,77 @@ function createWalkingMarker(
     traversed += lengths[index];
   }
 
-  const distanceMeters = Math.round((segment.distanceKm ?? 0) * 1000);
-  const durationMinutes = segment.estimatedMinutes ?? 0;
   const content = document.createElement('div');
   content.className = 'map-walk-marker-content';
   content.style.cssText =
-    'display:flex;align-items:center;gap:5px;width:max-content;padding:6px 8px;border:1px solid #e2e8f0;border-radius:9999px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.18);color:#334155';
+    'display:flex;align-items:center;gap:5px;width:max-content;padding:3px;border-radius:9999px;color:#1d4ed8';
   content.setAttribute('aria-hidden', 'true');
-  content.innerHTML =
-    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="m10 22 2-7-3-3 2-5 4 3 3 1M9 12l-4 3-2 4M14 15l4 2 2 4"/></svg>';
+  const walkingBadge = document.createElement('span');
+  walkingBadge.style.cssText =
+    'display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:2px solid #fff;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.24);color:#1d4ed8';
+  walkingBadge.innerHTML =
+    '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="m10 22 2-7-3-3 2-5 4 3 3 1M9 12l-4 3-2 4M14 15l4 2 2 4"/></svg>';
   const label = document.createElement('span');
   label.textContent = `${distanceMeters} m · ${durationMinutes} min`;
   label.style.cssText =
-    'font:600 10px/1 ui-sans-serif,system-ui,sans-serif;white-space:nowrap';
-  content.appendChild(label);
+    'padding:6px 8px;border:1px solid #e2e8f0;border-radius:9999px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.18);color:#334155;font:600 10px/1 ui-sans-serif,system-ui,sans-serif;white-space:nowrap';
+  content.append(walkingBadge, label);
 
   const marker = L.marker(midpoint, {
     icon: L.divIcon({
-      className: `map-walk-marker map-route-leg-${segment.legId ?? 'other'}`,
+      className: `map-walk-marker map-route-leg-${legId ?? 'other'}`,
       html: content,
-      iconSize: [130, 32],
-      iconAnchor: [65, 16],
+      iconSize: [150, 42],
+      iconAnchor: [75, 21],
     }),
     keyboard: true,
-    title: `Caminata${segment.legId ? ` del tramo ${segment.legId}` : ''}: ${distanceMeters} m, ${durationMinutes} min`,
+    title: `Caminata${legId ? ` del tramo ${legId}` : ''}: ${distanceMeters} m, ${durationMinutes} min`,
     alt: `Caminata: ${distanceMeters} metros, ${durationMinutes} minutos`,
     zIndexOffset: 500,
   });
   marker.on('click', () => {
-    if (segment.legId) onSelectLeg?.(segment.legId);
+    if (legId) onSelectLeg?.(legId);
   });
   return marker;
+}
+
+function createWalkingMarker(
+  L: LeafletModule,
+  segment: MapRouteSegment,
+  onSelectLeg?: (legId: string) => void
+): Marker | null {
+  return createWalkingRouteMarker(
+    L,
+    segment.coordinates,
+    Math.round((segment.distanceKm ?? 0) * 1000),
+    segment.estimatedMinutes ?? 0,
+    segment.legId,
+    onSelectLeg
+  );
+}
+
+function createCatalogGlyph(kind: PlaceKind): SVGSVGElement {
+  const paths: Record<PlaceKind, string> = {
+    attraction: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-8h6v8M8 9h.01M16 9h.01',
+    lodging: 'M3 7v14M3 17h18v4M3 12h5a4 4 0 0 1 4 4v1m0-4h5a4 4 0 0 1 4 4v1M6 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4',
+    food: 'M3 3v7a3 3 0 0 0 6 0V3M6 3v18m12-18v18m0-18c-2 2-3 5-3 8h6c0-3-1-6-3-8',
+    activity: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z',
+    unclassified: 'M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z',
+  };
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '17');
+  svg.setAttribute('height', '17');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.8');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', paths[kind] ?? paths.unclassified);
+  svg.appendChild(path);
+  return svg;
 }
 
 function renderRouteSegments(
@@ -412,53 +455,15 @@ export default function PlaceMap({
         distanceMeters: number,
         durationMinutes: number,
         legId?: string
-      ) => {
-        if (coords.length < 2) return null;
-
-        const lengths = coords.slice(1).map((point, pointIndex) =>
-          L.latLng(coords[pointIndex][0], coords[pointIndex][1])
-            .distanceTo(L.latLng(point[0], point[1]))
+      ) =>
+        createWalkingRouteMarker(
+          L,
+          coords,
+          distanceMeters,
+          durationMinutes,
+          legId,
+          (selectedLegId) => onSelectLegRef.current?.(selectedLegId)
         );
-        const halfway = lengths.reduce((total, length) => total + length, 0) / 2;
-        let traversed = 0;
-        let midpoint = coords[0];
-        for (let pointIndex = 0; pointIndex < lengths.length; pointIndex += 1) {
-          if (traversed + lengths[pointIndex] >= halfway) {
-            const fraction = lengths[pointIndex] > 0
-              ? (halfway - traversed) / lengths[pointIndex]
-              : 0;
-            const start = coords[pointIndex];
-            const end = coords[pointIndex + 1];
-            midpoint = [
-              start[0] + (end[0] - start[0]) * fraction,
-              start[1] + (end[1] - start[1]) * fraction,
-            ];
-            break;
-          }
-          traversed += lengths[pointIndex];
-        }
-
-        const icon = L.divIcon({
-          className: `map-walk-marker map-route-leg-${legId ?? 'other'}`,
-          html: `<div style="display:flex;align-items:center;gap:5px;width:max-content;padding:6px 8px;border:1px solid #e2e8f0;border-radius:9999px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.18);color:#334155;transition:opacity 140ms ease">
-            <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="m10 22 2-7-3-3 2-5 4 3 3 1M9 12l-4 3-2 4M14 15l4 2 2 4"/></svg>
-            <span style="font:600 10px/1 ui-sans-serif,system-ui,sans-serif;white-space:nowrap">${distanceMeters} m · ${durationMinutes} min</span>
-          </div>`,
-          iconSize: [130, 32],
-          iconAnchor: [65, 16],
-        });
-        const marker = L.marker(midpoint, {
-          icon,
-          keyboard: true,
-          title: `Caminata${legId ? ` del tramo ${legId}` : ''}: ${distanceMeters} m, ${durationMinutes} min`,
-          alt: `Caminata: ${distanceMeters} metros, ${durationMinutes} minutos`,
-          zIndexOffset: 500,
-        });
-        marker.on('click', () => {
-          if (legId) onSelectLegRef.current?.(legId);
-        });
-        return marker;
-      };
 
       if (!isMounted || !mapContainerRef.current) return;
 
@@ -626,35 +631,28 @@ export default function PlaceMap({
             if (!rp.lat || !rp.lon) return;
             bounds.extend(L.latLng(rp.lat, rp.lon));
 
-          const placeIcon =
-            rp.kind === 'lodging' ? '🛏️' :
-            rp.kind === 'food' ? '🍽️' :
-            rp.kind === 'activity' ? '✦' : '🏛️';
           const orderIcon = L.divIcon({
             className: 'custom-order-pin',
             html: `
               <div style="
-                background: #0D9488;
+                background: #F15B4F;
                 color: white;
-                min-width: 42px;
-                height: 36px;
-                border-radius: 18px;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                gap: 3px;
-                box-shadow: 0 3px 10px rgba(13, 148, 136, 0.45);
+                box-shadow: 0 2px 7px rgba(15, 23, 42, 0.3);
                 border: 2px solid white;
-                font-weight: bold;
-                font-size: 13px;
-                padding: 0 5px;
+                font-weight: 800;
+                font-size: 12px;
               ">
                 ${idx + 1}
-                <span aria-hidden="true" style="font-size:13px">${placeIcon}</span>
               </div>
             `,
-            iconSize: [42, 36],
-            iconAnchor: [21, 18],
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
           });
 
             const routePlaceMarker = L.marker([rp.lat, rp.lon], {
@@ -992,111 +990,35 @@ export default function PlaceMap({
           Number.isFinite(candidate.lon) &&
           isNearActiveRoute(candidate)
         );
-      const clusters: Place[][] = [];
-      const clusterGrid = new Map<string, number[]>();
-      const clusterRadius = 36;
-      candidates.forEach((candidate) => {
-        const point = map.project([candidate.lat, candidate.lon], mapZoom);
-        const xCell = Math.floor(point.x / clusterRadius);
-        const yCell = Math.floor(point.y / clusterRadius);
-        let clusterIndex: number | undefined;
-        for (let xOffset = -1; xOffset <= 1 && clusterIndex === undefined; xOffset += 1) {
-          for (let yOffset = -1; yOffset <= 1 && clusterIndex === undefined; yOffset += 1) {
-            const nearbyIndexes =
-              clusterGrid.get(`${xCell + xOffset}:${yCell + yOffset}`) ?? [];
-            clusterIndex = nearbyIndexes.find((index) => {
-              const center = clusters[index][0];
-              const centerPoint = map.project([center.lat, center.lon], mapZoom);
-              const deltaX = centerPoint.x - point.x;
-              const deltaY = centerPoint.y - point.y;
-              return Math.sqrt(deltaX * deltaX + deltaY * deltaY) <= clusterRadius;
-            });
-          }
-        }
-        if (clusterIndex === undefined) {
-          clusterIndex = clusters.length;
-          clusters.push([]);
-        }
-        clusters[clusterIndex].push(candidate);
-        const cellKey = `${xCell}:${yCell}`;
-        const cellIndexes = clusterGrid.get(cellKey) ?? [];
-        if (!cellIndexes.includes(clusterIndex)) {
-          cellIndexes.push(clusterIndex);
-          clusterGrid.set(cellKey, cellIndexes);
-        }
-      });
-
-      const markerStyles: Record<PlaceKind, { color: string; icon: string; label: string }> = {
-        attraction: { color: '#0D9488', icon: '🏛️', label: 'Atractivo' },
-        lodging: { color: '#4F46E5', icon: '🛏️', label: 'Hospedaje' },
-        food: { color: '#D97706', icon: '🍽️', label: 'Gastronomía' },
-        activity: { color: '#0284C7', icon: '✦', label: 'Actividad' },
-        unclassified: { color: '#64748B', icon: '📍', label: 'Lugar' },
+      const markerStyles: Record<PlaceKind, { color: string; label: string }> = {
+        attraction: { color: '#0D9488', label: 'Atractivo' },
+        lodging: { color: '#7C3AED', label: 'Hospedaje' },
+        food: { color: '#EA580C', label: 'Gastronomía' },
+        activity: { color: '#0284C7', label: 'Actividad' },
+        unclassified: { color: '#64748B', label: 'Lugar' },
       };
-      clusters.forEach((cluster) => {
-        const center: [number, number] = [
-          cluster.reduce((total, item) => total + item.lat, 0) / cluster.length,
-          cluster.reduce((total, item) => total + item.lon, 0) / cluster.length,
-        ];
-        let icon;
-        if (cluster.length === 1) {
-          const candidate = cluster[0];
-          const style = markerStyles[candidate.kind] ?? markerStyles.unclassified;
-          const content = document.createElement('div');
-          content.className = 'map-catalog-marker';
-          content.textContent = style.icon;
-          content.style.setProperty('--marker-color', style.color);
-          icon = L.divIcon({
-            className: 'custom-catalog-pin',
-            html: content,
-            iconSize: [44, 44],
-            iconAnchor: [22, 22],
-          });
-        } else {
-          const content = document.createElement('div');
-          content.className = 'map-catalog-cluster';
-          content.textContent = String(cluster.length);
-          icon = L.divIcon({
-            className: 'custom-catalog-cluster-icon',
-            html: content,
-            iconSize: [44, 44],
-            iconAnchor: [22, 22],
-          });
-        }
-        const clusterLabel = cluster.length === 1
-          ? `${cluster[0].name} · ${markerStyles[cluster[0].kind]?.label ?? 'Lugar'}`
-          : `${cluster.length} lugares próximos; abrir para seleccionar`;
-        const marker = L.marker(center, {
+      candidates.forEach((candidate) => {
+        const style = markerStyles[candidate.kind] ?? markerStyles.unclassified;
+        const content = document.createElement('div');
+        content.className = 'map-catalog-marker';
+        content.appendChild(createCatalogGlyph(candidate.kind));
+        content.style.setProperty('--marker-color', style.color);
+        const icon = L.divIcon({
+          className: 'custom-catalog-pin',
+          html: content,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15],
+        });
+        const marker = L.marker([candidate.lat, candidate.lon], {
           icon,
           keyboard: true,
-          title: clusterLabel,
-          alt: clusterLabel,
+          title: `${candidate.name} · ${style.label}`,
+          alt: `${candidate.name} · ${style.label}`,
           zIndexOffset: 250,
         }).addTo(layer);
-        if (cluster.length === 1) {
-          marker.on('click', () => onSelectPlaceRef.current?.(cluster[0]));
-        } else {
-          const popup = document.createElement('div');
-          popup.className = 'flex max-h-56 min-w-48 flex-col gap-1 overflow-y-auto p-1';
-          cluster.forEach((candidate) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className =
-              'rounded-md px-2 py-1.5 text-left text-xs font-semibold text-slate-800 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-700';
-            button.textContent = candidate.name;
-            button.addEventListener('click', (event) => {
-              event.stopPropagation();
-              map.closePopup();
-              onSelectPlaceRef.current?.(candidate);
-            });
-            popup.appendChild(button);
-          });
-          marker.bindPopup(popup, { maxWidth: 260 });
-        }
-        cluster.forEach((candidate) => {
-          catalogMarkersRef.current.set(candidate.id, marker);
-        });
-        if (cluster.some((candidate) => candidate.id === selectedPlace?.id)) {
+        catalogMarkersRef.current.set(candidate.id, marker);
+        marker.on('click', () => onSelectPlaceRef.current?.(candidate));
+        if (candidate.id === selectedPlace?.id) {
           marker.getElement()?.classList.add('map-place-focused');
         }
       });

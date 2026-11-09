@@ -1,5 +1,5 @@
 /** Behavioral tests for the stable transit-service facade and public contracts. */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   calculateTaxiEstimate,
   isTransitWalkOverLimit,
@@ -60,9 +60,41 @@ describe('urban transit walking access limit', () => {
     it('resolves short journeys through the public asynchronous API', async () => {
       const origin = makePlace(1, 'Origen', -8.111, -79.03);
       const destination = makePlace(2, 'Destino', -8.112, -79.03);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            routes: [{
+              geometry: {
+                coordinates: [
+                  [-79.03, -8.111],
+                  [-79.0301, -8.1115],
+                  [-79.03, -8.112],
+                ],
+              },
+              distance: 180,
+              duration: 150,
+            }],
+          }),
+        })
+      );
 
-      await expect(resolveTransitBetweenPlaces(origin, destination))
-        .resolves.toMatchObject({ vehicleType: 'caminata', farePen: 0 });
+      try {
+        await expect(resolveTransitBetweenPlaces(origin, destination))
+          .resolves.toMatchObject({
+            vehicleType: 'caminata',
+            farePen: 0,
+            routeGeometryVerified: true,
+            routeGeometry: [
+              [-8.111, -79.03],
+              [-8.1115, -79.0301],
+              [-8.112, -79.03],
+            ],
+          });
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
   });
 });

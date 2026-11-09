@@ -21,6 +21,19 @@ registra cambios pequeños de formato.
   acciones de selección.
 - Los iconos se generan con SVG en el navegador y no agregan dependencias.
 
+### Caminatas cortas y mapa ocultable
+
+- Los recorridos entre destinos cercanos intentan obtener geometría peatonal de
+  OSRM incluso cuando la distancia directa es menor a 300 m. El mapa muestra el
+  trazado por calles con un icono peatonal circular y su métrica; si OSRM no
+  responde, conserva el fallback existente, marcado como aproximado.
+- Al ocultar el mapa en escritorio, el área del itinerario se expande para
+  aprovechar el espacio liberado.
+- La exploración ya no agrupa marcadores: muestra un icono vectorial individual
+  por lugar y pines numerados para las paradas del itinerario activo.
+- Se retiró la sección Notas del Viaje. Al añadir lugares desde Explorar, se
+  muestran directamente los días del viaje actual, sin listar otros viajes.
+
 ### TSDoc y responsabilidades en `frontend/src/lib`
 
 - Se revisaron los módulos TypeScript de la biblioteca frontend, incluidos

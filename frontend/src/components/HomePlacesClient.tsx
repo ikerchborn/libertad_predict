@@ -19,7 +19,6 @@ import {
   Landmark,
   Compass as ActivityIcon,
   Check,
-  FileText,
   Sun,
   Waves,
   FolderKanban,
@@ -160,7 +159,6 @@ export function HomePlacesClient({
     setHotelAnchor,
     setTripDetails,
     setIsStarted,
-    setNotes,
   } = useTripCache();
 
   // Multi-trip drawer and rename states
@@ -180,7 +178,6 @@ export function HomePlacesClient({
   const [newTripTitleInput, setNewTripTitleInput] = useState(trip.title || `Viaje a ${trip.destination || "Trujillo"}`);
   const [newTripDestinationModal, setNewTripDestinationModal] = useState("");
   const [newDayDate, setNewDayDate] = useState("");
-  const [notesSaveStatus, setNotesSaveStatus] = useState<"idle" | "saved" | "error">("idle");
   const [isMapVisible, setIsMapVisible] = useState(true);
 
   // Working Date inputs: default to real dates
@@ -373,6 +370,9 @@ export function HomePlacesClient({
             estimatedMinutes: transit.estimatedMinutes,
             routeGeometry: transit.routeGeometry,
             routeGeometryVerified: transit.routeGeometryVerified,
+            isApproximate: transit.routeGeometry
+              ? !transit.routeGeometryVerified
+              : undefined,
             walkPhase: "to-place",
           });
           continue;
@@ -540,7 +540,7 @@ export function HomePlacesClient({
                 coordinates: routeGeometry,
                 distanceKm,
                 durationMin: segment.estimatedMinutes ?? 0,
-                isFallback: false,
+                isFallback: segment.isApproximate ?? !segment.routeGeometryVerified,
               },
             };
           }
@@ -1049,35 +1049,35 @@ export function HomePlacesClient({
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="font-display text-lg font-bold">¿Dónde quieres añadirlo?</h2>
+                <h2 className="font-display text-lg font-bold">Añadir al viaje actual</h2>
                 <p className="mt-1 text-xs text-adobe-muted">{placeToAdd.name}</p>
+                <p className="mt-1 text-[11px] text-adobe-muted">
+                  {trip.title || `Viaje a ${trip.destination}`}
+                </p>
               </div>
               <button type="button" onClick={() => setPlaceToAdd(null)} className="text-xl text-adobe-muted" aria-label="Cerrar">×</button>
             </div>
             <div className="mt-4 space-y-3">
-              {savedTrips.map((savedTrip) => (
-                <div key={savedTrip.id} className="rounded-xl border border-adobe-border p-3">
-                  <p className="text-sm font-bold">{savedTrip.title}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {savedTrip.days.map((day, index) => (
-                      <button
-                        key={day.id}
-                        type="button"
-                        onClick={() => {
-                          switchTrip(savedTrip.id);
-                          setActiveDayId(day.id);
-                          addPlaceToDay(day.id, placeToAdd);
-                          setPlaceToAdd(null);
-                          setIsStarted(true);
-                        }}
-                        className="rounded-lg bg-moche-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-moche-700"
-                      >
-                        Añadir al Día {index + 1} ({day.places.length})
-                      </button>
-                    ))}
-                  </div>
+              <div className="rounded-xl border border-adobe-border p-3">
+                <p className="text-sm font-bold">Elige un día de este viaje</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {trip.days.map((day, index) => (
+                    <button
+                      key={day.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveDayId(day.id);
+                        addPlaceToDay(day.id, placeToAdd);
+                        setPlaceToAdd(null);
+                        setIsStarted(true);
+                      }}
+                      className="rounded-lg bg-moche-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-moche-700"
+                    >
+                      Añadir al Día {index + 1} ({day.places.length})
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </div>
@@ -1353,7 +1353,6 @@ export function HomePlacesClient({
               <span className="planner-sidebar-label">TU VIAJE</span>
               <a href="#planner-summary"><MapPin />Resumen</a>
               <a href="#places-catalog"><Compass />Explorar</a>
-              <a href="#planner-notes"><FileText />Notas</a>
               <Link href="/places"><Landmark />Lugares</Link>
               <span className="planner-sidebar-label planner-days-label">ITINERARIO</span>
               {trip.days.map((day, index) => (
@@ -1374,10 +1373,9 @@ export function HomePlacesClient({
             <nav className="planner-mobile-nav" aria-label="Secciones del viaje">
               <a href="#planner-summary">Resumen</a>
               <a href="#planner-itinerary">Itinerario</a>
-              <a href="#planner-notes">Notas</a>
               <Link href="/places">Lugares</Link>
             </nav>
-            <div className="planner-main">
+            <div className={`planner-main ${!isMapVisible ? "planner-main-map-hidden" : ""}`}>
 
             {/* Trip planning progress */}
             <ol
@@ -1570,38 +1568,6 @@ export function HomePlacesClient({
                   </div>
                 </div>
               </section>
-            </div>
-
-            {/* Section Notas Persistentes */}
-            <div id="planner-notes" className="bg-white rounded-2xl border border-adobe-border p-4 shadow-2xs space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-adobe-dark flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-moche-600" />
-                  <span>Notas del Viaje</span>
-                </label>
-                <span
-                  role="status"
-                  aria-live="polite"
-                  className={`text-[10px] ${
-                    notesSaveStatus === "error" ? "text-red-700" : "text-adobe-muted"
-                  }`}
-                >
-                  {notesSaveStatus === "saved"
-                    ? "Guardado en este dispositivo"
-                    : notesSaveStatus === "error"
-                      ? "No se pudo guardar en este dispositivo"
-                      : "Se guarda automáticamente al escribir"}
-                </span>
-              </div>
-              <textarea
-                value={trip.notes}
-                onChange={(e) => {
-                  setNotesSaveStatus(setNotes(e.target.value) ? "saved" : "error");
-                }}
-                placeholder="Agrega reservas, contactos o recordatorios para tu viaje."
-                rows={2}
-                className="w-full bg-adobe-bg/40 border border-adobe-border rounded-xl p-3 text-xs font-medium text-adobe-dark focus:bg-white focus:ring-2 focus:ring-moche-500 focus:outline-none placeholder:text-adobe-muted resize-none"
-              />
             </div>
 
             {/* Mobile / Tablet View Switcher Tab (Hidden on Desktop) */}
@@ -2533,7 +2499,7 @@ export function HomePlacesClient({
                               className="inline-flex items-center gap-1 rounded-lg bg-moche-600 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-moche-700"
                             >
                               <Plus className="h-3 w-3" />
-                              Elegir viaje y día
+                              Añadir al día
                             </button>
                           )}
                         </div>
@@ -2834,9 +2800,6 @@ export function HomePlacesClient({
                   </div>
                 ) : (
                   filteredPlacesList.slice(0, displayCount).map((item) => {
-                    const isAlreadyInActiveDay = activeDay?.places.some(
-                      (p) => p.id === item.id
-                    );
                     const isHotelAnchor = trip.hotelAnchor?.id === item.id;
 
                     const imgFallback =
@@ -2929,7 +2892,7 @@ export function HomePlacesClient({
                         </div>
 
                         {/* Right: Actions */}
-                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-adobe-border/60">
+                        <div className="flex flex-wrap items-center gap-2 self-end sm:self-center shrink-0 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-adobe-border/60">
                           <Link
                             href={`/places/${item.id}`}
                             className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-adobe-muted hover:text-adobe-dark hover:bg-adobe-bg transition"
@@ -2957,29 +2920,40 @@ export function HomePlacesClient({
                             </button>
                           )}
 
-                          {/* Add to Active Day Button */}
-                          <button
-                            type="button"
-                            disabled={isAlreadyInActiveDay}
-                            onClick={() => setPlaceToAdd(item)}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 shadow-2xs ${
-                              isAlreadyInActiveDay
-                                ? "bg-emerald-100 text-emerald-800 cursor-default"
-                                : "bg-moche-600 hover:bg-moche-700 text-white cursor-pointer"
-                            }`}
-                          >
-                            {isAlreadyInActiveDay ? (
-                              <>
-                                <Check className="w-3.5 h-3.5" />
-                                <span>En {activeDayLabel}</span>
-                              </>
-                            ) : (
-                              <>
-                                <Plus className="w-3.5 h-3.5" />
-                                <span>Elegir viaje y día</span>
-                              </>
-                            )}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-adobe-muted">
+                              Añadir a:
+                            </span>
+                            {trip.days.map((day, dayIndex) => {
+                              const isAlreadyInDay = day.places.some(
+                                (place) => place.id === item.id
+                              );
+                              return (
+                                <button
+                                  key={day.id}
+                                  type="button"
+                                  disabled={isAlreadyInDay}
+                                  onClick={() => {
+                                    setActiveDayId(day.id);
+                                    addPlaceToDay(day.id, item);
+                                    setIsStarted(true);
+                                  }}
+                                  aria-label={
+                                    isAlreadyInDay
+                                      ? `${item.name} ya está en el Día ${dayIndex + 1}`
+                                      : `Añadir ${item.name} al Día ${dayIndex + 1} del viaje actual`
+                                  }
+                                  className={`rounded-lg px-2 py-1.5 text-[10px] font-bold transition ${
+                                    isAlreadyInDay
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-slate-900 text-white hover:bg-moche-700"
+                                  }`}
+                                >
+                                  {isAlreadyInDay ? <Check className="h-3 w-3" /> : `Día ${dayIndex + 1}`}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     );

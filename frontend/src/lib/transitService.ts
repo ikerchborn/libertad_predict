@@ -43,9 +43,6 @@ export async function resolveTransitBetweenPlaces(
       createInternalWalkOption(origin, destination, walkingRoute)
     );
   }
-  if (directDistanceKm < 0.3) {
-    return getTransitBetweenPlaces(origin, destination, urbanFare);
-  }
   if (directDistanceKm > 0.8) {
     const truxdiTransit = await resolveTruxdiTransit(origin, destination);
     return truxdiTransit
@@ -79,6 +76,20 @@ export async function resolveTransitBetweenPlaces(
       routeGeometryVerified: true,
       instructions: `Ruta peatonal por calles: ${walkingRoute.distanceKm.toFixed(1)} km, aproximadamente ${walkingRoute.durationMin} min.`,
     };
+  }
+
+  if (directDistanceKm <= 0.3 && (!walkingRoute || walkingRoute.isFallback)) {
+    const shortWalk = getTransitBetweenPlaces(origin, destination, urbanFare);
+    return walkingRoute
+      ? {
+          ...shortWalk,
+          estimatedMinutes: Math.max(1, walkingRoute.durationMin),
+          routeGeometry: walkingRoute.coordinates,
+          routeDistanceKm: walkingRoute.distanceKm,
+          routeGeometryVerified: false,
+          warning: 'No se pudo confirmar la ruta peatonal por calles; el trazo es aproximado.',
+        }
+      : shortWalk;
   }
 
   const truxdiTransit = await resolveTruxdiTransit(origin, destination);

@@ -18,6 +18,10 @@ registra cambios pequeños de formato.
   sus acciones para evitar comprimir los nombres en columnas estrechas.
 - Se compactó el encabezado móvil del viaje, se evitó que la navegación tape el
   resumen y se quitó el acceso duplicado a Lugares del menú móvil.
+- Se eliminó el espacio innecesario bajo el encabezado en móviles para que la
+  navegación del viaje quede inmediatamente debajo.
+- Explorar y «+ Lugares» mantienen visible el catálogo incluso si se activó
+  Modo Viaje desde el itinerario.
 - Al iniciar un viaje desde la portada, el planificador abre desde el inicio de
   la página para evitar que el mapa quede fuera de vista en pantallas pequeñas.
 - Los tramos de transporte sin geometría propia solicitan ahora una ruta vial a

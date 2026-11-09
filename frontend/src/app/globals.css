@@ -279,7 +279,6 @@
 .travel-mode .planner-summary,
 .travel-mode .planner-discovery-section,
 .travel-mode .planner-actions-budget,
-.travel-mode #places-catalog,
 .travel-mode .planner-map-helper {
   display: none !important;
 }
@@ -795,7 +794,7 @@ svg {
   }
 
   .planner-mobile-nav {
-    top: 5rem;
+    top: 3.75rem;
   }
 }
 

@@ -210,6 +210,6 @@ export function Header({
         </div>
       </div>
     </header>
-    <div className={planner ? "h-20 sm:h-24 xl:h-14 shrink-0" : "h-14 shrink-0"} aria-hidden="true" />
+    <div className={planner ? "h-15 sm:h-24 xl:h-14 shrink-0" : "h-14 shrink-0"} aria-hidden="true" />
   </>);
 }

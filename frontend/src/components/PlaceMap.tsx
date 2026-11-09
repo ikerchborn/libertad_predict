@@ -491,7 +491,7 @@ export default function PlaceMap({
           if (segment.kind === 'transit') {
             const badge = document.createElement('span');
             badge.textContent =
-              `${segment.routeCode ?? segment.label.split(':')[0]} · ${segment.companyName ?? 'Transporte referencial'}`;
+              `${segment.routeCode ?? segment.label.split(':')[0]} · ${segment.companyName ?? 'Transporte público'}`;
             badge.style.cssText =
               `display:inline-block;width:fit-content;padding:2px 7px;border-radius:999px;font-weight:800;background:${segment.badgeColor ?? color};color:${segment.textColor ?? '#fff'}`;
             routeTooltip.appendChild(badge);
@@ -499,11 +499,7 @@ export default function PlaceMap({
           const routeDescription = document.createElement('span');
           routeDescription.textContent =
             `${segment.label}${segment.distanceKm != null ? ` · ${segment.distanceKm.toFixed(1)} km` : ''}` +
-            (segment.kind === 'transit'
-              ? routeIsVerified
-                ? ' · Traza verificada'
-                : ' · Recorrido referencial entre paraderos'
-              : '');
+            '';
           routeTooltip.appendChild(routeDescription);
           line.bindTooltip(routeTooltip, { sticky: true });
           if (segment.kind === 'walking' && segment.coordinates.length > 1) {
@@ -521,7 +517,7 @@ export default function PlaceMap({
               segment.coordinates[Math.floor(segment.coordinates.length / 2)];
             const durationIcon = L.divIcon({
               className: `map-route-duration-pin ${legClass}`,
-              html: `<span title="Duración referencial${segment.waitMinutes ? `; incluye ${segment.waitMinutes} min de espera media` : ''}">Leg ${segment.legId ?? '?'} · ~${segment.estimatedMinutes + (segment.waitMinutes ?? 0)} min</span>`,
+              html: `<span title="Tiempo estimado${segment.waitMinutes ? `; incluye ${segment.waitMinutes} min de espera` : ''}">Leg ${segment.legId ?? '?'} · ~${segment.estimatedMinutes + (segment.waitMinutes ?? 0)} min</span>`,
               iconSize: [145, 26],
               iconAnchor: [72, 13],
             });
@@ -560,10 +556,17 @@ export default function PlaceMap({
             const boardingTooltip = document.createElement('div');
             const boardingTitle = document.createElement('strong');
             boardingTitle.textContent =
-              `Paso 2: Abordar ${segment.companyName ?? 'el servicio'} (${segment.routeCode ?? segment.legId ?? 'ruta referencial'})`;
+              `Sube: ${segment.companyName ?? 'transporte público'}${segment.routeCode ? ` · Línea ${segment.routeCode}` : ''}`;
             const boardingLocation = document.createElement('div');
-            boardingLocation.textContent =
-              `${segment.boardingStop ?? 'Paradero referencial'} — ${segment.boardingLandmarkHint ?? 'confirma el punto exacto antes de abordar.'}`;
+            const boardingStop = segment.boardingStop ?? 'Paradero sugerido';
+            const boardingHint =
+              segment.boardingLandmarkHint &&
+              segment.boardingLandmarkHint !== boardingStop
+                ? segment.boardingLandmarkHint
+                : undefined;
+            boardingLocation.textContent = [boardingStop, boardingHint]
+              .filter(Boolean)
+              .join(' · ');
             boardingTooltip.append(boardingTitle, boardingLocation);
             boardingMarker
               .bindTooltip(boardingTooltip)
@@ -577,11 +580,19 @@ export default function PlaceMap({
             const dropoffTooltip = document.createElement('div');
             const dropoffTitle = document.createElement('strong');
             dropoffTitle.textContent =
-              `Paso 3: Descender en ${segment.dropoffStop ?? 'paradero referencial'}`;
+              `Baja en ${segment.dropoffStop ?? 'paradero sugerido'}`;
             const dropoffLocation = document.createElement('div');
-            dropoffLocation.textContent =
-              segment.dropoffLandmarkHint ?? 'Confirma con el conductor el punto de descenso.';
-            dropoffTooltip.append(dropoffTitle, dropoffLocation);
+            const dropoffHint =
+              segment.dropoffLandmarkHint &&
+              segment.dropoffLandmarkHint !== segment.dropoffStop
+                ? segment.dropoffLandmarkHint
+                : undefined;
+            if (dropoffHint) {
+              dropoffLocation.textContent = dropoffHint;
+              dropoffTooltip.append(dropoffTitle, dropoffLocation);
+            } else {
+              dropoffTooltip.append(dropoffTitle);
+            }
             dropoffMarker
               .bindTooltip(dropoffTooltip)
               .on('click', () => {
@@ -822,11 +833,6 @@ export default function PlaceMap({
                           : `S/ ${route.farePen.toFixed(2)} · `
                         : ''}
                     {route.label}
-                    {route.isTransit
-                      ? route.routeGeometryVerified
-                        ? ' · traza verificada'
-                        : ' · recorrido referencial entre paraderos'
-                      : ''}
                     </span>
                   </span>
                 </label>

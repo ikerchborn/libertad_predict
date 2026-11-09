@@ -84,6 +84,28 @@ function getLegId(index: number): string {
   return String.fromCharCode(65 + index);
 }
 
+function getUsefulLandmarkHint(stop: string, hint?: string): string | undefined {
+  if (!hint || /sin referencia física publicada/i.test(hint)) return undefined;
+  let conciseHint = hint
+    .replace(/\[([^\]]*)\]/g, (_match, contents: string, offset: number, source: string) => {
+      const precedingText = source.slice(0, offset).trimEnd();
+      return precedingText &&
+        contents.trim().toLowerCase().startsWith(precedingText.toLowerCase())
+        ? ""
+        : contents;
+    })
+    .replace(/\s*\(referencial\)/gi, "")
+    .split(/;\s*(?:confirma|referencia aproximada|punto referencial)/i)[0]
+    .trim();
+  if (conciseHint.toLowerCase().startsWith(stop.trim().toLowerCase())) {
+    conciseHint = conciseHint
+      .slice(stop.trim().length)
+      .replace(/^[\s().·—:;,.–-]+|[\s().·—:;,.–-]+$/g, "")
+      .trim();
+  }
+  return conciseHint || undefined;
+}
+
 function getTransitPairKey(origin: Place, destination: Place): string {
   return `${origin.id}>${destination.id}`;
 }
@@ -508,10 +530,6 @@ export function HomePlacesClient({
             );
             return {
               ...segment,
-              label:
-                segment.kind === "transit" && !segment.routeGeometryVerified
-                  ? `${segment.label} · trazo no verificado`
-                  : segment.label,
               route: {
                 coordinates: routeGeometry,
                 distanceKm,
@@ -523,7 +541,6 @@ export function HomePlacesClient({
           if (segment.kind === "transit") {
             return {
               ...segment,
-              label: `${segment.label} · Recorrido referencial entre paraderos`,
               route: {
                 coordinates: [segment.origin, segment.destination],
                 distanceKm: haversineKm(
@@ -1504,9 +1521,6 @@ export function HomePlacesClient({
                     </p>
                   </div>
                 </div>
-                <p className="mt-3 border-t border-adobe-border/60 pt-2 text-[10px] leading-snug text-adobe-muted">
-                  Tarifas, rutas y paraderos referenciales; confirma el destino y la tarifa con el servicio local.
-                </p>
               </section>
             </div>
 
@@ -1687,7 +1701,7 @@ export function HomePlacesClient({
                       <span className="text-adobe-border">•</span>
                       <Clock className="w-3.5 h-3.5 text-adobe-muted" />
                       <span>
-                        ~{routeStats.min} min de traslado, referencial
+                        ~{routeStats.min} min de traslado estimados
                       </span>
                     </div>
                   )}
@@ -1728,7 +1742,7 @@ export function HomePlacesClient({
                 </div>
                 {routeStats && routeStats.min >= 90 && (
                   <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-950">
-                    <b>Tiempo total referencial:</b> combina caminatas, transporte y esperas medias estimadas. Confirma servicios, frecuencias y horarios antes de viajar.
+                    <b>Tiempo total estimado:</b> incluye caminatas, transporte y esperas medias.
                   </div>
                 )}
                 {longDistanceSteps.length > 0 && (
@@ -1745,13 +1759,13 @@ export function HomePlacesClient({
                           return (
                             <span key={`${from.id}-${to.id}`}>
                               {index > 0 ? " " : ""}
-                              {from.name} → {to.name}: aprox. {directKm.toFixed(0)} km en línea directa y ~{transit.estimatedMinutes} min por tramo según el catálogo referencial.
+                              {from.name} → {to.name}: aprox. {directKm.toFixed(0)} km en línea directa y ~{transit.estimatedMinutes} min por tramo.
                             </span>
                           );
                         })}
                       </p>
                       <p className="mt-1 font-semibold">
-                        Tiempo de transporte público estimado para este día: ~{estimatedTransitMinutes} min, sin contar esperas. Considera separar la excursión en otro día y confirma horarios, paraderos y retorno antes de salir.
+                        Tiempo de transporte público estimado para este día: ~{estimatedTransitMinutes} min, sin contar esperas. Para excursiones fuera de ciudad, confirma horarios y retorno antes de salir.
                       </p>
                     </div>
                 )}
@@ -1787,17 +1801,6 @@ export function HomePlacesClient({
                             ? getTransitAlternatives(place, nextPlace, baseTransit)
                             : [];
                         const legId = getLegId(idx);
-                        const transitModeLabel = transit
-                          ? {
-                              micro: "microbús",
-                              combi: "combi",
-                              bus: "bus",
-                              colectivo: "colectivo",
-                              mototaxi: "mototaxi",
-                              caminata: "caminata",
-                              taxi: "taxi",
-                            }[transit.vehicleType]
-                          : "";
                         const legSegments = routeSegments.filter(
                           (segment) => segment.legId === legId
                         );
@@ -1839,6 +1842,18 @@ export function HomePlacesClient({
                               : ""
                           }`;
                         };
+                        const totalTravelMinutes = Math.max(
+                          1,
+                          Math.round(
+                            legSegments.reduce(
+                              (total, segment) =>
+                                total +
+                                (segment.estimatedMinutes ?? 0) +
+                                (segment.waitMinutes ?? 0),
+                              0
+                            ) || (transit?.estimatedMinutes ?? 0) + (transit?.waitMinutes ?? 0)
+                          )
+                        );
 
                         const imgFallback =
                           place.kind === "food"
@@ -1945,9 +1960,6 @@ export function HomePlacesClient({
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="rounded-full bg-amber-900 px-2 py-1 font-extrabold text-white">
-                                        Leg {legId}
-                                      </span>
                                       <span className="font-bold text-amber-950 text-sm">
                                         {transit.vehicleType === "micro" ? "Microbús" : transit.vehicleType === "combi" ? "Combi" : transit.vehicleType === "bus" ? "Bus" : transit.vehicleType === "mototaxi" ? "Mototaxi" : transit.vehicleType === "taxi" ? "Taxi / Aplicativo" : "Caminata"}
                                       </span>
@@ -1988,41 +2000,31 @@ export function HomePlacesClient({
                                         </>
                                       ) : (
                                         <>
-                                          <p>
-                                            <b>Paso 1: {boardingWalkKm < 0.05 ? "Ubica el paradero:" : "Caminar:"}</b>{" "}
-                                            {boardingWalkKm < 0.05
-                                              ? `cerca de ${place.name}; ${transit.boardingLandmarkHint}`
-                                              : `${walkMeasure("to-board", [place.lat, place.lon], transit.boardingPoint)} hacia ${transit.boardingStop} (${transit.boardingLandmarkHint}).`}
-                                          </p>
+                                          <ol className="list-decimal space-y-1 pl-5">
+                                          {boardingWalkKm >= 0.05 && (
+                                            <li>
+                                              <b>Camina:</b>{" "}
+                                              {walkMeasure("to-board", [place.lat, place.lon], transit.boardingPoint)} hasta <b>{transit.boardingStop}</b>
+                                              {getUsefulLandmarkHint(transit.boardingStop, transit.boardingLandmarkHint) && ` · ${getUsefulLandmarkHint(transit.boardingStop, transit.boardingLandmarkHint)}`}.
+                                            </li>
+                                          )}
                                           {transit.routeLegs?.length ? (
                                             transit.routeLegs.map((routeLeg, routeLegIndex) => {
                                               const nextRouteLeg = transit.routeLegs?.[routeLegIndex + 1];
-                                              const boardStep = routeLegIndex === 0 ? 2 : routeLegIndex * 3 + 2;
-                                              const alightStep = boardStep + 1;
                                               return (
                                                 <React.Fragment key={`${routeLeg.code}-${routeLegIndex}`}>
-                                                  <div
-                                                    className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold"
-                                                    style={{
-                                                      backgroundColor: routeLeg.badgeColor ?? "#92400E",
-                                                      color: routeLeg.textColor ?? "#FFFFFF",
-                                                    }}
-                                                  >
-                                                    {routeLeg.routeCode ?? routeLeg.code} · {routeLeg.companyName ?? routeLeg.serviceName}
-                                                  </div>
-                                                  <p>
-                                                    <b>Paso {boardStep}: {routeLegIndex === 0 ? "Abordar" : "Transbordar y abordar"}:</b>{" "}
-                                                    {routeLeg.companyName ?? routeLeg.serviceName} ({routeLeg.routeCode ?? routeLeg.code}) en <b>{routeLeg.boardingStop}</b> ({routeLeg.boardingLandmarkHint}).
-                                                  </p>
-                                                  <p>
-                                                    <b>Paso {alightStep}: Descender:</b> en {routeLeg.dropoffStop} ({routeLeg.dropoffLandmarkHint}) tras ~{routeLeg.estimatedMinutes} min.
-                                                  </p>
-                                                  <p>
-                                                    <b>Espera media:</b> ~{routeLeg.waitMinutes} min antes de abordar; puede variar por frecuencia y horario.
-                                                  </p>
+                                                  <li>
+                                                    <b>{routeLegIndex === 0 ? "Sube" : "Cambia de micro"}:</b>{" "}
+                                                    {routeLeg.vehicleType === "mototaxi" ? "mototaxi" : "microbús"} <b>{routeLeg.routeCode ?? routeLeg.code}</b> · {routeLeg.companyName ?? routeLeg.serviceName} en <b>{routeLeg.boardingStop}</b>
+                                                    {getUsefulLandmarkHint(routeLeg.boardingStop, routeLeg.boardingLandmarkHint) && ` · ${getUsefulLandmarkHint(routeLeg.boardingStop, routeLeg.boardingLandmarkHint)}`}; espera media ~{routeLeg.waitMinutes} min.
+                                                  </li>
+                                                  <li>
+                                                    <b>Baja:</b> en <b>{routeLeg.dropoffStop}</b>
+                                                    {getUsefulLandmarkHint(routeLeg.dropoffStop, routeLeg.dropoffLandmarkHint) && ` · ${getUsefulLandmarkHint(routeLeg.dropoffStop, routeLeg.dropoffLandmarkHint)}`} tras ~{routeLeg.estimatedMinutes} min.
+                                                  </li>
                                                   {nextRouteLeg && (
-                                                    <p>
-                                                      <b>Conexión a pie:</b>{" "}
+                                                    <li>
+                                                      <b>Camina al transbordo:</b>{" "}
                                                       {walkMeasure(
                                                         "transfer",
                                                         routeLeg.dropoffPoint,
@@ -2030,46 +2032,37 @@ export function HomePlacesClient({
                                                         routeLegIndex - 1
                                                       )}{" "}
                                                       hasta {nextRouteLeg.boardingStop}.
-                                                    </p>
+                                                    </li>
                                                   )}
                                                 </React.Fragment>
                                               );
                                             })
                                           ) : (
                                             <>
-                                              <p>
-                                                <b>Paso 2: Abordar:</b> {transit.companyName ?? transit.serviceName} ({transit.routeCode ?? transit.code}) en <b>{transit.boardingStop}</b> ({transit.boardingLandmarkHint}). Cartel: <b>{transit.headsign ?? "no verificado"}</b>.
-                                              </p>
-                                              <p>
-                                                <b>Paso 3: Descender:</b>{" "}
-                                                {alightingWalkKm < 0.05
-                                                  ? `en ${transit.dropoffStop} (${transit.dropoffLandmarkHint}); confirma con el cobrador.`
-                                                  : `en ${transit.dropoffStop} (${transit.dropoffLandmarkHint}) tras ~${transit.estimatedMinutes} min de bus.`}
-                                              </p>
-                                              {transit.waitMinutes > 0 && (
-                                                <p>
-                                                  <b>Espera media estimada:</b> ~{transit.waitMinutes} min antes de abordar; puede variar según la frecuencia.
-                                                </p>
-                                              )}
+                                              <li>
+                                                <b>Sube:</b> {transit.vehicleType === "combi" ? "combi" : "microbús"} <b>{transit.routeCode ?? transit.code}</b> · {transit.companyName ?? transit.serviceName} en <b>{transit.boardingStop}</b>
+                                                {getUsefulLandmarkHint(transit.boardingStop, transit.boardingLandmarkHint) && ` · ${getUsefulLandmarkHint(transit.boardingStop, transit.boardingLandmarkHint)}`}
+                                                {transit.headsign && !/no verificado|referencial/i.test(transit.headsign) && <>; busca el letrero <b>{transit.headsign}</b></>}
+                                                {transit.waitMinutes > 0 && `; espera media ~${transit.waitMinutes} min.`}
+                                              </li>
+                                              <li>
+                                                <b>Baja:</b>{" "}
+                                                en <b>{transit.dropoffStop}</b>
+                                                {getUsefulLandmarkHint(transit.dropoffStop, transit.dropoffLandmarkHint) && ` · ${getUsefulLandmarkHint(transit.dropoffStop, transit.dropoffLandmarkHint)}`}
+                                                {` tras ~${transit.estimatedMinutes} min de viaje.`}
+                                              </li>
                                             </>
                                           )}
-                                          {alightingWalkKm >= 0.05 && <p>
-                                            <b>Camina:</b> {walkMeasure("to-place", transit.dropoffPoint, [nextPlace?.lat ?? place.lat, nextPlace?.lon ?? place.lon])} hasta {nextPlace?.name ?? "la siguiente visita"}.
-                                          </p>}
+                                          {alightingWalkKm >= 0.05 && <li>
+                                            <b>Camina:</b> {walkMeasure("to-place", transit.dropoffPoint, [nextPlace?.lat ?? place.lat, nextPlace?.lon ?? place.lon])} hasta <b>{nextPlace?.name ?? "tu destino"}</b>.
+                                          </li>}
+                                          </ol>
                                         </>
                                       )}
                                     </div>
-                                    <p className="mt-1 inline-flex rounded-md bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
-                                      Confianza: {transit.confidence === "alta" ? "alta" : transit.confidence === "media" ? "media" : "baja · referencial"}
-                                    </p>
-                                    {transit.routeLegs && transit.routeLegs.length > 1 && (
-                                      <p className="mt-1 rounded-lg bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-900">
-                                        ⚠️ Requiere {transit.routeLegs.length - 1} transbordo{transit.routeLegs.length > 2 ? "s" : ""}. Cambia de unidad en cada paradero indicado.
-                                      </p>
-                                    )}
-                                    {transit.warning && (
-                                      <p className="mt-1 rounded-lg border border-orange-300 bg-orange-100 px-2 py-1 text-[10px] font-semibold text-orange-950">
-                                        {transit.warning}
+                                    {transit.vehicleType !== "caminata" && transit.vehicleType !== "taxi" && (
+                                      <p className="mt-1.5 text-[10px] text-amber-800/80">
+                                        Paraderos sugeridos; confirma el destino con el cobrador al subir.
                                       </p>
                                     )}
                                     {alternatives.length > 1 && (
@@ -2122,7 +2115,7 @@ export function HomePlacesClient({
                                       }}
                                       className="mt-2 rounded-lg border border-amber-800 px-2.5 py-1.5 text-[11px] font-bold text-amber-950 hover:bg-amber-200"
                                     >
-                                      Ver Leg {legId} en el mapa
+                                      Ver tramo en el mapa
                                     </button>
                                   </div>
                                 </div>
@@ -2138,11 +2131,7 @@ export function HomePlacesClient({
                                   <span className="text-[11px] font-bold text-neutral-700">
                                     {transit.vehicleType === "caminata"
                                       ? walkMeasure("to-place", [place.lat, place.lon], [nextPlace?.lat ?? place.lat, nextPlace?.lon ?? place.lon])
-                                      : `${transitModeLabel} ~${transit.estimatedMinutes + transit.waitMinutes} min${
-                                          transit.waitMinutes
-                                            ? ` (incluye ~${transit.waitMinutes} min de espera)`
-                                            : ""
-                                        }`}
+                                      : `~${totalTravelMinutes} min total`}
                                   </span>
                                 </div>
                               </article>
@@ -2545,19 +2534,19 @@ export function HomePlacesClient({
                                 </strong>
                               </div>
                               <div className="rounded-lg bg-adobe-bg p-2">
-                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Espera media estimada</span>
+                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Espera media</span>
                                 <strong className="mt-0.5 block text-adobe-dark">
                                   {selectedTransitRoute.waitMinutes != null
                                     ? `~${selectedTransitRoute.waitMinutes} min`
-                                    : "No disponible"}
+                                    : "—"}
                                 </strong>
                               </div>
                               <div className="rounded-lg bg-adobe-bg p-2">
-                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Tiempo a bordo</span>
+                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Tiempo de viaje</span>
                                 <strong className="mt-0.5 block text-adobe-dark">
                                   {selectedTransitRoute.estimatedMinutes != null
                                     ? `~${selectedTransitRoute.estimatedMinutes} min`
-                                    : "No disponible"}
+                                    : "—"}
                                 </strong>
                               </div>
                               <div className="rounded-lg bg-adobe-bg p-2">
@@ -2565,28 +2554,32 @@ export function HomePlacesClient({
                                 <strong className="mt-0.5 block text-adobe-dark">
                                   {selectedTransitRoute.distanceKm != null
                                     ? `${selectedTransitRoute.distanceKm.toFixed(1)} km`
-                                    : "No disponible"}
+                                    : "—"}
                                 </strong>
                               </div>
                             </div>
                             <div className="space-y-2 text-xs">
                               <div className="rounded-lg border border-adobe-border p-2.5">
-                                <span className="block text-[10px] font-bold uppercase text-moche-700">Abordaje</span>
+                                <span className="block text-[10px] font-bold uppercase text-moche-700">Subes en</span>
                                 <strong className="mt-0.5 block text-adobe-dark">
-                                  {selectedTransitRoute.boardingStop ?? "Paradero no especificado"}
+                                  {selectedTransitRoute.boardingStop ?? "Paradero sugerido"}
                                 </strong>
-                                <span className="mt-0.5 block leading-relaxed text-adobe-muted">
-                                  {selectedTransitRoute.boardingLandmarkHint ?? "Confirma el punto exacto antes de abordar."}
-                                </span>
+                                {getUsefulLandmarkHint(selectedTransitRoute.boardingStop ?? "", selectedTransitRoute.boardingLandmarkHint) && (
+                                  <span className="mt-0.5 block leading-relaxed text-adobe-muted">
+                                    {getUsefulLandmarkHint(selectedTransitRoute.boardingStop ?? "", selectedTransitRoute.boardingLandmarkHint)}
+                                  </span>
+                                )}
                               </div>
                               <div className="rounded-lg border border-adobe-border p-2.5">
-                                <span className="block text-[10px] font-bold uppercase text-moche-700">Descenso</span>
+                                <span className="block text-[10px] font-bold uppercase text-moche-700">Bajas en</span>
                                 <strong className="mt-0.5 block text-adobe-dark">
-                                  {selectedTransitRoute.dropoffStop ?? "Paradero no especificado"}
+                                  {selectedTransitRoute.dropoffStop ?? "Paradero sugerido"}
                                 </strong>
-                                <span className="mt-0.5 block leading-relaxed text-adobe-muted">
-                                  {selectedTransitRoute.dropoffLandmarkHint ?? "Confirma el punto de descenso con el conductor."}
-                                </span>
+                                {getUsefulLandmarkHint(selectedTransitRoute.dropoffStop ?? "", selectedTransitRoute.dropoffLandmarkHint) && (
+                                  <span className="mt-0.5 block leading-relaxed text-adobe-muted">
+                                    {getUsefulLandmarkHint(selectedTransitRoute.dropoffStop ?? "", selectedTransitRoute.dropoffLandmarkHint)}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>

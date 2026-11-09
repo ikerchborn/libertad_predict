@@ -534,36 +534,15 @@ export default function TripPlanner({
                               </span>
                             </span>
                           </div>
-                          <div className="text-[11px] text-amber-800 line-clamp-1 mt-0.5">
-                            {transit.instructions}
-                          </div>
-                          {transit.confidence && (
-                            <div className="text-[10px] text-amber-700 mt-0.5">
-                              Confianza {transit.confidence}
-                              {transit.fareRangePen
-                                ? ` · rango S/ ${transit.fareRangePen[0].toFixed(2)}–${transit.fareRangePen[1].toFixed(2)}`
-                                : ''}
-                            </div>
-                          )}
-                          {transit.routeLegs && (
-                            <div className="text-[10px] text-amber-700 mt-0.5">
-                              {transit.routeLegs.length} tramos · confianza {transit.confidence ?? 'referencial'}
-                            </div>
-                          )}
-                          {transit.warning && (
-                            <div className="text-[10px] font-semibold text-orange-800 mt-0.5">
-                              {transit.warning}
-                            </div>
-                          )}
                           <div className="text-[10px] text-amber-700/80 flex items-center gap-1.5 mt-0.5">
                             <span className="truncate">
-                              Paso 1: caminar hacia <b>{transit.boardingStop}</b> (
-                              {transit.boardingLandmarkHint})
+                              Camina hasta <b>{transit.boardingStop}</b>
+                              {transit.boardingLandmarkHint && transit.boardingLandmarkHint !== transit.boardingStop && ` (${transit.boardingLandmarkHint})`}
                             </span>
                             <span>&bull;</span>
                             <span className="truncate">
-                              Paso 3: descender en <b>{transit.dropoffStop}</b> (
-                              {transit.dropoffLandmarkHint})
+                              Baja en <b>{transit.dropoffStop}</b>
+                              {transit.dropoffLandmarkHint && transit.dropoffLandmarkHint !== transit.dropoffStop && ` (${transit.dropoffLandmarkHint})`}
                             </span>
                           </div>
                           {transit.routeLegs?.map((leg, legIndex) => (
@@ -581,7 +560,9 @@ export default function TripPlanner({
                                 {leg.routeCode ?? leg.code} · {leg.companyName ?? leg.serviceName}
                               </span>
                               <span className="text-amber-800">
-                                Paso {legIndex === 0 ? 2 : legIndex * 3 + 2}: abordar en {leg.boardingStop} ({leg.boardingLandmarkHint}); descender en {leg.dropoffStop} ({leg.dropoffLandmarkHint}).
+                                {legIndex === 0 ? 'Sube' : 'Cambia de micro'} en {leg.boardingStop}
+                                {leg.boardingLandmarkHint && leg.boardingLandmarkHint !== leg.boardingStop && ` (${leg.boardingLandmarkHint})`}; baja en {leg.dropoffStop}
+                                {leg.dropoffLandmarkHint && leg.dropoffLandmarkHint !== leg.dropoffStop && ` (${leg.dropoffLandmarkHint})`}.
                               </span>
                             </div>
                           ))}
@@ -593,10 +574,7 @@ export default function TripPlanner({
                           {transit.farePen === 0 ? 'Gratis' : `S/ ${transit.farePen.toFixed(2)}`}
                         </span>
                         <span className="text-[10px] font-semibold text-neutral-600">
-                          ~{transit.estimatedMinutes + transit.waitMinutes} min
-                          {transit.waitMinutes > 0
-                            ? ` (incluye ~${transit.waitMinutes} min de espera)`
-                            : ''}
+                          ~{transit.estimatedMinutes + transit.waitMinutes} min total
                         </span>
                       </div>
                     </div>

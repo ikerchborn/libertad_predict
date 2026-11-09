@@ -115,6 +115,8 @@ const truxdiCandidatesCache = new Map<
   string,
   Array<{ transit: TransitOption; totalEstimatedMinutes: number }>
 >();
+const MAX_URBAN_WALK_TO_STOP_KM = 1;
+const MAX_UNVERIFIED_WALK_TO_STOP_KM = 0.75;
 
 export interface TransitOption {
   code: string;
@@ -305,7 +307,7 @@ function getTruxdiTransitCandidates(
   if (cachedCandidates) return cachedCandidates;
 
   const candidates: Array<{ transit: TransitOption; totalEstimatedMinutes: number }> = [];
-  const maxStopAccessKm = 0.8;
+  const maxStopAccessKm = MAX_URBAN_WALK_TO_STOP_KM;
 
   for (const route of truxdiRoutes) {
     if (
@@ -448,14 +450,9 @@ function getTruxdiTransitCandidates(
               badgeColor,
               textColor: route.text_color ?? TEXT_ON_DARK,
               boardingLandmarkHint:
-                boarding.stop.landmark_hint ??
-                'Sin referencia física publicada; confirma el punto exacto con la empresa.',
+                boarding.stop.landmark_hint,
               dropoffLandmarkHint:
-                alighting.stop.landmark_hint ??
-                'Sin referencia física publicada; confirma el punto exacto con la empresa.',
-              warning: geometryVerified
-                ? undefined
-                : 'Recorrido referencial: confirma la ruta y los paraderos con la empresa antes de abordar.',
+                alighting.stop.landmark_hint,
             },
           });
         }
@@ -481,6 +478,38 @@ function getRouteGeometry(
       route.routeGeometry?.geometry?.coordinates;
   if (!coordinates || coordinates.length < 2) return undefined;
   return coordinates.map(([lon, lat]) => [lat, lon] as [number, number]);
+}
+
+function cleanTransitCopy(value?: string): string | undefined {
+  if (!value) return undefined;
+  const cleaned = value
+    .replace(/\[([^\]]*)\]/g, (_match, contents: string, offset: number, source: string) => {
+      const precedingText = source.slice(0, offset).trimEnd();
+      return precedingText &&
+        contents.trim().toLowerCase().startsWith(precedingText.toLowerCase())
+        ? ''
+        : contents;
+    })
+    .replace(/\s*\(referencial\)/gi, '')
+    .replace(/\s*;\s*(?:referencia aproximada|punto referencial|sin referencia física publicada|confirma\b).*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned || undefined;
+}
+
+function cleanLandmarkHint(stopName: string, hint?: string): string | undefined {
+  const stop = cleanTransitCopy(stopName);
+  let landmark = cleanTransitCopy(hint);
+  if (!stop || !landmark) return undefined;
+  if (landmark.toLowerCase().startsWith(stop.toLowerCase())) {
+    landmark = landmark
+      .slice(stop.length)
+      .replace(/^[\s().·—:;,.–-]+|[\s().·—:;,.–-]+$/g, '')
+      .trim();
+  }
+  return landmark && landmark.toLowerCase() !== stop.toLowerCase()
+    ? landmark
+    : undefined;
 }
 
 function getZone(place: Place): string {
@@ -535,7 +564,7 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     dropoffStop: dropoff.name,
     boardingPoint: [boarding.latitude, boarding.longitude],
     dropoffPoint: [dropoff.latitude, dropoff.longitude],
-    instructions: `Ruta ${reverse ? 'de retorno' : 'de salida'} desde ${boarding.name}. Tarifa referencial; confirmar en el terminal.`,
+    instructions: `Ruta ${reverse ? 'de retorno' : 'de salida'} desde ${boarding.name}.`,
     confidence: route.confidence,
     source: route.source,
     routeGeometry,
@@ -545,10 +574,8 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     companyName: route.company_name ?? route.serviceName,
     badgeColor: getBadgeColor(route),
     textColor: route.text_color ?? TEXT_ON_DARK,
-    boardingLandmarkHint: boardingStop?.landmark_hint ??
-      `${boarding.name}${boardingStop?.address ? ` · ${boardingStop.address}` : ''}; referencia aproximada, confirma el punto de abordaje.`,
-    dropoffLandmarkHint: dropoffStop?.landmark_hint ??
-      `${dropoff.name}${dropoffStop?.address ? ` · ${dropoffStop.address}` : ''}; confirma el punto de descenso.`,
+    boardingLandmarkHint: boardingStop?.landmark_hint ?? boardingStop?.address,
+    dropoffLandmarkHint: dropoffStop?.landmark_hint ?? dropoffStop?.address,
   };
 }
 
@@ -757,7 +784,7 @@ function getTransitBetweenPlacesBase(
       code: 'M-06 B',
       routeColor: getRouteColor('M-06 B'),
       serviceName: 'Microbús Línea B ("La B de Huanchaco")',
-      headsign: 'Huanchaco (referencial)',
+      headsign: 'Huanchaco',
       vehicleType: 'micro',
       farePen: urbanFare,
       estimatedMinutes: 30,
@@ -775,8 +802,8 @@ function getTransitBetweenPlacesBase(
     return {
       code: 'M-04 A',
       routeColor: getRouteColor('M-04 A'),
-      serviceName: 'Microbús Línea A / B de Huanchaco',
-      headsign: 'Huanchaco (referencial)',
+      serviceName: 'Micro Huanchaco (Línea A)',
+      headsign: 'Huanchaco',
       vehicleType: 'micro',
       farePen: urbanFare,
       estimatedMinutes: 20,
@@ -907,16 +934,16 @@ function getTransitIdentity(code: string): {
   badgeColor: string;
 } {
   const identities: Record<string, { routeCode: string; companyName: string; badgeColor: string }> = {
-    'M-06 B': { routeCode: 'B', companyName: 'Línea B (referencial)', badgeColor: '#1D4ED8' },
-    'M-04 A': { routeCode: 'A/B', companyName: 'Línea A / B de Huanchaco (referencial)', badgeColor: '#0369A1' },
-    'C-27 B': { routeCode: 'C-27', companyName: 'Combi Línea B (referencial)', badgeColor: '#047857' },
-    'C-14 S': { routeCode: 'S', companyName: 'Combi Línea S (referencial)', badgeColor: '#7E22CE' },
-    'TAXI-LOCAL': { routeCode: 'TAXI', companyName: 'Taxi local (referencial)', badgeColor: '#A16207' },
-    TAXI: { routeCode: 'TAXI', companyName: 'Taxi / aplicativo (referencial)', badgeColor: '#A16207' },
-    'RUTA-CAO': { routeCode: 'CAO', companyName: 'Transporte hacia El Brujo (referencial)', badgeColor: '#854D0E' },
-    'INTER-CHICAMA': { routeCode: 'IC', companyName: 'Chicama Express (referencial)', badgeColor: '#854D0E' },
-    'ANDINO-HUAMACHUCO': { routeCode: 'AH', companyName: 'Bus interandino (referencial)', badgeColor: '#0369A1' },
-    'RUTA-EL-BRUJO': { routeCode: 'EL BRUJO', companyName: 'Conexión a El Brujo (referencial)', badgeColor: '#047857' },
+    'M-06 B': { routeCode: 'B', companyName: 'Micro Huanchaco', badgeColor: '#1D4ED8' },
+    'M-04 A': { routeCode: 'A', companyName: 'Micro Huanchaco', badgeColor: '#0369A1' },
+    'C-27 B': { routeCode: 'B', companyName: 'Combi Huanchaco', badgeColor: '#047857' },
+    'C-14 S': { routeCode: 'S', companyName: 'Combi Línea S', badgeColor: '#7E22CE' },
+    'TAXI-LOCAL': { routeCode: 'TAXI', companyName: 'Taxi local', badgeColor: '#A16207' },
+    TAXI: { routeCode: 'TAXI', companyName: 'Taxi / aplicativo', badgeColor: '#A16207' },
+    'RUTA-CAO': { routeCode: 'CAO', companyName: 'Transporte a El Brujo', badgeColor: '#854D0E' },
+    'INTER-CHICAMA': { routeCode: 'IC', companyName: 'Chicama Express', badgeColor: '#854D0E' },
+    'ANDINO-HUAMACHUCO': { routeCode: 'AH', companyName: 'Bus interandino', badgeColor: '#0369A1' },
+    'RUTA-EL-BRUJO': { routeCode: 'EL BRUJO', companyName: 'Conexión a El Brujo', badgeColor: '#047857' },
   };
   return identities[code] ?? {
     routeCode: code,
@@ -925,39 +952,57 @@ function getTransitIdentity(code: string): {
   };
 }
 
-function getLandmarkHint(stopName: string, address?: string): string {
+function getLandmarkHint(stopName: string, address?: string): string | undefined {
   const stop = [...catalogStops.values()].find((candidate) => candidate.name === stopName);
   if (stop?.landmark_hint) return stop.landmark_hint;
-  const reference = address ?? stop?.address;
-  return `${stopName}${reference ? ` (${reference})` : ''}; referencia aproximada, confirma el punto autorizado para abordar o descender.`;
+  return address ?? stop?.address;
 }
 
 function enrichTransitOption(transit: TransitOption): TransitOption {
   const identity = getTransitIdentity(transit.code);
+  const boardingStop = cleanTransitCopy(transit.boardingStop) ?? transit.boardingStop;
+  const dropoffStop = cleanTransitCopy(transit.dropoffStop) ?? transit.dropoffStop;
   return {
     ...transit,
-    routeCode: transit.routeCode ?? identity.routeCode,
-    companyName: transit.companyName ?? identity.companyName,
+    serviceName: cleanTransitCopy(transit.serviceName) ?? transit.serviceName,
+    headsign: cleanTransitCopy(transit.headsign),
+    boardingStop,
+    dropoffStop,
+    routeCode: cleanTransitCopy(transit.routeCode ?? identity.routeCode) ?? identity.routeCode,
+    companyName: cleanTransitCopy(transit.companyName ?? identity.companyName) ?? identity.companyName,
     badgeColor: transit.badgeColor ?? identity.badgeColor,
     textColor: transit.textColor ?? TEXT_ON_DARK,
     routeColor: transit.routeColor ?? transit.badgeColor ?? identity.badgeColor,
-    boardingLandmarkHint:
-      transit.boardingLandmarkHint ?? getLandmarkHint(transit.boardingStop),
-    dropoffLandmarkHint:
-      transit.dropoffLandmarkHint ?? getLandmarkHint(transit.dropoffStop),
+    boardingLandmarkHint: cleanLandmarkHint(
+      boardingStop,
+      transit.boardingLandmarkHint ?? getLandmarkHint(boardingStop)
+    ),
+    dropoffLandmarkHint: cleanLandmarkHint(
+      dropoffStop,
+      transit.dropoffLandmarkHint ?? getLandmarkHint(dropoffStop)
+    ),
     routeLegs: transit.routeLegs?.map((leg) => {
       const legIdentity = getTransitIdentity(leg.code);
+      const legBoardingStop = cleanTransitCopy(leg.boardingStop) ?? leg.boardingStop;
+      const legDropoffStop = cleanTransitCopy(leg.dropoffStop) ?? leg.dropoffStop;
       return {
         ...leg,
-        routeCode: leg.routeCode ?? legIdentity.routeCode,
-        companyName: leg.companyName ?? legIdentity.companyName,
+        serviceName: cleanTransitCopy(leg.serviceName) ?? leg.serviceName,
+        boardingStop: legBoardingStop,
+        dropoffStop: legDropoffStop,
+        routeCode: cleanTransitCopy(leg.routeCode ?? legIdentity.routeCode) ?? legIdentity.routeCode,
+        companyName: cleanTransitCopy(leg.companyName ?? legIdentity.companyName) ?? legIdentity.companyName,
         badgeColor: leg.badgeColor ?? legIdentity.badgeColor,
         textColor: leg.textColor ?? TEXT_ON_DARK,
         routeColor: leg.routeColor ?? leg.badgeColor ?? legIdentity.badgeColor,
-        boardingLandmarkHint:
-          leg.boardingLandmarkHint ?? getLandmarkHint(leg.boardingStop),
-        dropoffLandmarkHint:
-          leg.dropoffLandmarkHint ?? getLandmarkHint(leg.dropoffStop),
+        boardingLandmarkHint: cleanLandmarkHint(
+          legBoardingStop,
+          leg.boardingLandmarkHint ?? getLandmarkHint(legBoardingStop)
+        ),
+        dropoffLandmarkHint: cleanLandmarkHint(
+          legDropoffStop,
+          leg.dropoffLandmarkHint ?? getLandmarkHint(legDropoffStop)
+        ),
       };
     }),
   };
@@ -968,9 +1013,19 @@ export function getTransitBetweenPlaces(
   destination: Place,
   urbanFare = 2.5
 ): TransitOption {
-  return enrichTransitOption(
-    getTransitBetweenPlacesBase(origin, destination, urbanFare)
-  );
+  const transit = getTransitBetweenPlacesBase(origin, destination, urbanFare);
+  if (
+    (transit.vehicleType === 'micro' || transit.vehicleType === 'combi') &&
+    (
+      haversineKm(origin.lat, origin.lon, transit.boardingPoint[0], transit.boardingPoint[1]) >
+        MAX_UNVERIFIED_WALK_TO_STOP_KM ||
+      haversineKm(transit.dropoffPoint[0], transit.dropoffPoint[1], destination.lat, destination.lon) >
+        MAX_UNVERIFIED_WALK_TO_STOP_KM
+    )
+  ) {
+    return enrichTransitOption(getDirectTaxiOption(origin, destination));
+  }
+  return enrichTransitOption(transit);
 }
 
 function getTransitFallbackWithoutTruxdi(
@@ -981,6 +1036,64 @@ function getTransitFallbackWithoutTruxdi(
   return enrichTransitOption(
     getTransitBetweenPlacesBase(origin, destination, urbanFare, false)
   );
+}
+
+function getDirectTaxiOption(origin: Place, destination: Place): TransitOption {
+  const distanceKm = haversineKm(origin.lat, origin.lon, destination.lat, destination.lon);
+  const taxi = calculateTaxiEstimate(distanceKm);
+  return {
+    code: 'TAXI-DIRECTO',
+    serviceName: 'Taxi directo / aplicativo',
+    vehicleType: 'taxi',
+    farePen: taxi.fareAvg,
+    fareRangePen: [taxi.fareMin, taxi.fareMax],
+    estimatedMinutes: taxi.estimatedMinutes,
+    waitMinutes: 0,
+    routeColor: getRouteColor('TAXI-DIRECTO'),
+    boardingStop: `Punto de partida (${origin.name})`,
+    dropoffStop: `Destino (${destination.name})`,
+    boardingPoint: [origin.lat, origin.lon],
+    dropoffPoint: [destination.lat, destination.lon],
+    instructions: 'Viaje directo en taxi.',
+    confidence: 'media',
+    source: 'Estimación de taxi por distancia',
+  };
+}
+
+async function getFallbackTransitWithAccessLimit(
+  origin: Place,
+  destination: Place,
+  urbanFare: number
+): Promise<TransitOption> {
+  const transit = getTransitFallbackWithoutTruxdi(origin, destination, urbanFare);
+  if (transit.vehicleType !== 'micro' && transit.vehicleType !== 'combi') {
+    return transit;
+  }
+
+  const accessDistances = [
+    haversineKm(origin.lat, origin.lon, transit.boardingPoint[0], transit.boardingPoint[1]),
+    haversineKm(transit.dropoffPoint[0], transit.dropoffPoint[1], destination.lat, destination.lon),
+  ];
+  const accessRoutes = await Promise.all(
+    accessDistances.map((distanceKm, index) => {
+      if (distanceKm <= 0.05) return Promise.resolve(null);
+      return index === 0
+        ? getWalkingRoute([origin.lat, origin.lon], transit.boardingPoint)
+        : getWalkingRoute(transit.dropoffPoint, [destination.lat, destination.lon]);
+    })
+  );
+  const tooFarToWalk = accessDistances.some((distanceKm, index) => {
+    const route = accessRoutes[index];
+    if (route) {
+      return route.distanceKm > MAX_URBAN_WALK_TO_STOP_KM ||
+        (route.isFallback && distanceKm > MAX_UNVERIFIED_WALK_TO_STOP_KM);
+    }
+    return distanceKm > MAX_URBAN_WALK_TO_STOP_KM;
+  });
+
+  return tooFarToWalk
+    ? enrichTransitOption(getDirectTaxiOption(origin, destination))
+    : transit;
 }
 
 async function resolveTruxdiTransit(
@@ -1008,16 +1121,16 @@ async function resolveTruxdiTransit(
       accessDistances[0] > 0.3
         ? getWalkingRoute([origin.lat, origin.lon], transit.boardingPoint)
         : Promise.resolve(null),
-      accessDistances[1] > 0.3
+      accessDistances[1] > 0.05
         ? getWalkingRoute(transit.dropoffPoint, [destination.lat, destination.lon])
         : Promise.resolve(null),
     ]);
-    const inaccessible = accessRoutes.some(
-      (route) =>
-        route &&
-        !route.isFallback &&
-        (route.distanceKm > 0.9 || route.durationMin > 12)
-    );
+    const inaccessible = accessRoutes.some((route, index) => {
+      if (!route) return accessDistances[index] > 0.3;
+      if (route.distanceKm > MAX_URBAN_WALK_TO_STOP_KM) return true;
+      return route.isFallback &&
+        accessDistances[index] > MAX_UNVERIFIED_WALK_TO_STOP_KM;
+    });
     if (inaccessible) continue;
 
     const unverifiedAccess = accessRoutes.some(
@@ -1057,7 +1170,9 @@ export async function resolveTransitBetweenPlaces(
   }
   if (directDistanceKm > 0.8) {
     const truxdiTransit = await resolveTruxdiTransit(origin, destination);
-    return truxdiTransit ?? getTransitFallbackWithoutTruxdi(origin, destination, urbanFare);
+    return truxdiTransit
+      ? enrichTransitOption(truxdiTransit)
+      : getFallbackTransitWithAccessLimit(origin, destination, urbanFare);
   }
 
   const walkingRoute = await getWalkingRoute(
@@ -1090,7 +1205,9 @@ export async function resolveTransitBetweenPlaces(
 
   const truxdiTransit = await resolveTruxdiTransit(origin, destination);
   const transit =
-    truxdiTransit ?? getTransitFallbackWithoutTruxdi(origin, destination, urbanFare);
+    truxdiTransit
+      ? enrichTransitOption(truxdiTransit)
+      : await getFallbackTransitWithAccessLimit(origin, destination, urbanFare);
   const reason = !walkingRoute || walkingRoute.isFallback
     ? 'No se pudo confirmar una ruta peatonal por calles;'
     : `La ruta peatonal mide ${walkingRoute.distanceKm.toFixed(1)} km y toma unos ${walkingRoute.durationMin} min;`;
@@ -1114,27 +1231,7 @@ export function getTransitAlternatives(
     return [{ id: 'transit', label: 'Ruta disponible', transit }];
   }
 
-  const taxi = calculateTaxiEstimate(
-    haversineKm(origin.lat, origin.lon, destination.lat, destination.lon)
-  );
-  const directTaxi: TransitOption = {
-    code: 'TAXI-DIRECTO',
-    serviceName: 'Taxi directo / aplicativo',
-    vehicleType: 'taxi',
-    farePen: taxi.fareAvg,
-    fareRangePen: [taxi.fareMin, taxi.fareMax],
-    estimatedMinutes: taxi.estimatedMinutes,
-    waitMinutes: 0,
-    boardingStop: `Punto de partida (${origin.name})`,
-    dropoffStop: `Destino (${destination.name})`,
-    boardingPoint: [origin.lat, origin.lon],
-    dropoffPoint: [destination.lat, destination.lon],
-    routeColor: getRouteColor('TAXI-DIRECTO'),
-    instructions: 'Opción directa en taxi estimada por distancia; no representa una ruta vial ni una tarifa confirmada.',
-    confidence: 'baja',
-    source: 'Estimación referencial por distancia en línea directa',
-    warning: 'Tiempo y tarifa de taxi son referenciales; pueden variar por tráfico y negociación.',
-  };
+  const directTaxi = enrichTransitOption(getDirectTaxiOption(origin, destination));
 
   return [
     { id: 'transit', label: 'Transporte público · con transbordos', transit },

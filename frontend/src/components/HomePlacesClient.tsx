@@ -30,7 +30,6 @@ import {
   Phone,
   BusFront,
   CarFront,
-  FileText,
   Maximize2,
   Minimize2,
 } from "lucide-react";
@@ -164,7 +163,6 @@ export function HomePlacesClient({
     setHotelAnchor,
     setTripDetails,
     setIsStarted,
-    setNotes,
   } = useTripCache();
 
   // Multi-trip drawer and rename states
@@ -186,6 +184,7 @@ export function HomePlacesClient({
   const [newDayDate, setNewDayDate] = useState("");
   const [isMapVisible, setIsMapVisible] = useState(true);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [expandedLegDetails, setExpandedLegDetails] = useState<Record<string, boolean>>({});
 
   const handleQuickFilterCategory = (category: PlaceKind) => {
     setListCategory(category);
@@ -1154,7 +1153,7 @@ export function HomePlacesClient({
               ¿Eliminar todos tus viajes?
             </h2>
             <p id="delete-all-trips-description" className="mt-2 text-sm leading-relaxed text-adobe-muted">
-              Se eliminarán los {savedTrips.length} viajes guardados, incluidas sus notas, días y paradas.
+              Se eliminarán los {savedTrips.length} viajes guardados, incluidos sus días y paradas.
               Luego podrás crear un viaje nuevo cuando quieras.
             </p>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -1460,15 +1459,6 @@ export function HomePlacesClient({
               <button
                 type="button"
                 onClick={() => {
-                  setPlannerView("itinerary");
-                  document.getElementById("planner-notes")?.scrollIntoView({ behavior: "smooth" });
-                }}
-              >
-                <FileText />Notas
-              </button>
-              <button
-                type="button"
-                onClick={() => {
                   setListCategory("all");
                   openPlacesCatalog();
                 }}
@@ -1587,12 +1577,12 @@ export function HomePlacesClient({
                 </div>
               </div>
 
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs leading-relaxed text-emerald-900">
-                <strong className="block">Datos del catálogo y mapa</strong>
-                <span className="mt-1 block">
-                  Los lugares y sus ubicaciones se muestran desde el catálogo disponible; las rutas
-                  de transporte pueden ser estimadas cuando no existe geometría oficial confirmada.
-                </span>
+              <div
+                title="Los lugares y sus ubicaciones se muestran desde el catálogo disponible; las rutas de transporte pueden ser estimadas cuando no existe geometría oficial confirmada."
+                className="flex cursor-help items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-3.5 py-2.5 text-xs text-emerald-900"
+              >
+                <span className="font-bold">ⓘ</span>
+                <span>Catálogo verificado · rutas y tarifas de transporte referenciales.</span>
               </div>
 
               <section aria-labelledby="trip-day-breakdown-title">
@@ -1847,59 +1837,27 @@ export function HomePlacesClient({
                           : `S/ ${totalTransitFareRange[0].toFixed(2)}–${totalTransitFareRange[1].toFixed(2)}`}
                       </div>
                       <p className="mt-0.5 text-xs text-adobe-muted">
-                        ~{routeStats?.min ?? estimatedTransitMinutes + estimatedWalkingMinutes} min de transporte y caminata, sin esperas. No incluye entradas, comida ni hospedaje.
+                        ~{routeStats?.min ?? estimatedTransitMinutes + estimatedWalkingMinutes} min en traslado (solo transporte).
                       </p>
                     </>
                   )}
                 </div>
 
-                <div className="mt-3 border-t border-adobe-border/70 pt-2.5">
-                  <p className="text-[10px] leading-relaxed text-amber-900/80">
-                    Antes de subir, confirme el destino del letrero y la tarifa con el servicio local. Rutas y paraderos son referenciales.
-                  </p>
-                  <div className="mt-2 flex items-center gap-2">
-                    {dayTransitSteps.length > 0 && (
-                      <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200/70">
-                        {dayTransitSteps.length} {dayTransitSteps.length === 1 ? "tramo calculado" : "tramos calculados"}
-                      </span>
-                    )}
-                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                      Referencial
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-adobe-border/70 pt-2.5">
+                  {dayTransitSteps.length > 0 && (
+                    <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200/70">
+                      {dayTransitSteps.length} {dayTransitSteps.length === 1 ? "tramo" : "tramos"}
                     </span>
-                  </div>
+                  )}
+                  <span
+                    title="Antes de subir, confirme el destino del letrero y la tarifa con el servicio local. Rutas y paraderos son referenciales. No incluye entradas, comida ni hospedaje."
+                    className="inline-flex cursor-help items-center gap-1 rounded-md bg-amber-50/80 border border-amber-200/70 px-2 py-0.5 text-[10px] font-semibold text-amber-900"
+                  >
+                    <span>ⓘ Tarifas y rutas referenciales</span>
+                  </span>
                 </div>
               </section>
             </div>
-
-            {/* Card 3: Notas del Viaje (Auto-guardadas) */}
-            <section id="planner-notes" className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs">
-              <div className="flex items-center justify-between gap-2 border-b border-adobe-border/60 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-adobe-dark">Notas del Viaje</h3>
-                    <p className="text-[10px] text-adobe-muted">Agrega reservas, contactos o recordatorios para tu viaje.</p>
-                  </div>
-                </div>
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-                  <Check className="h-3 w-3" />
-                  <span className="hidden sm:inline">Se guarda automáticamente al escribir</span>
-                  <span className="sm:hidden">Auto-guardado</span>
-                </span>
-              </div>
-              <div className="mt-3">
-                <textarea
-                  key={trip.id}
-                  rows={2}
-                  defaultValue={trip.notes || ""}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Agrega reservas, contactos, números de hotel o recordatorios para tu viaje..."
-                  className="w-full rounded-xl border border-adobe-border/80 bg-slate-50/50 p-2.5 text-xs leading-relaxed text-adobe-dark placeholder:text-adobe-muted/80 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-200"
-                />
-              </div>
-            </section>
 
             {/* Mobile / Tablet View Switcher Tab (Hidden on Desktop) */}
             <div className="lg:hidden flex items-center bg-white p-1 rounded-2xl border border-adobe-border shadow-2xs">
@@ -2317,12 +2275,113 @@ export function HomePlacesClient({
                                     : "bg-amber-50/90 border-amber-200/90"
                                 }`}
                               >
+                                {transit.vehicleType === "taxi" ? (
+                                  <div className="flex w-full flex-col gap-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="flex min-w-0 items-center gap-2">
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-800 text-base text-white shadow-2xs">
+                                          🚕
+                                        </span>
+                                        <span className="rounded-full bg-amber-900/10 px-2 py-0.5 text-[10px] font-bold text-amber-950">
+                                          Leg {legId}
+                                        </span>
+                                        <span className="font-bold text-amber-950 text-xs sm:text-sm">
+                                          Taxi ·{" "}
+                                          {transit.fareRangePen
+                                            ? `S/ ${Math.round(transit.fareRangePen[0])}–${Math.round(transit.fareRangePen[1])}`
+                                            : `S/ ${transit.farePen.toFixed(0)}`}{" "}
+                                          · ~{totalTravelMinutes} min
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          aria-expanded={Boolean(expandedLegDetails[legId])}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setExpandedLegDetails((prev) => ({
+                                              ...prev,
+                                              [legId]: !prev[legId],
+                                            }));
+                                          }}
+                                          className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-[11px] font-bold text-amber-950 hover:bg-amber-100 cursor-pointer"
+                                        >
+                                          {expandedLegDetails[legId] ? "Ocultar detalle" : "Ver detalle"}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          aria-pressed={selectedLegId === legId}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedLegId(legId);
+                                            setMobileTab("map");
+                                            document.getElementById("planner-map")?.scrollIntoView({
+                                              behavior: "smooth",
+                                              block: "center",
+                                            });
+                                          }}
+                                          className="rounded-lg border border-amber-800 px-2.5 py-1 text-[11px] font-bold text-amber-950 hover:bg-amber-200 cursor-pointer"
+                                        >
+                                          Ver en mapa
+                                        </button>
+                                      </div>
+                                    </div>
+                                    {expandedLegDetails[legId] && (
+                                      <div className="rounded-xl border border-amber-200/80 bg-white/75 px-3 py-2 text-[11px] leading-relaxed text-amber-950 space-y-1">
+                                        <p>
+                                          <b>Trayecto directo:</b> {place.name} → {nextPlace?.name} (en puerta o por app Yango / Uber / inDrive, sin transbordos).
+                                        </p>
+                                        {transit.warning && (
+                                          <p className="text-[10px] text-amber-800/80">{transit.warning}</p>
+                                        )}
+                                      </div>
+                                    )}
+                                    {alternatives.length > 1 && (
+                                      <div
+                                        className="flex flex-wrap gap-1.5"
+                                        role="group"
+                                        aria-label={`Alternativas para ir de ${place.name} a ${nextPlace?.name}`}
+                                      >
+                                        {alternatives.map((alternative) => {
+                                          const isSelected =
+                                            (selectedTransitModes[pairKey] ?? "transit") ===
+                                            alternative.id;
+                                          const totalMinutes =
+                                            alternative.transit.estimatedMinutes +
+                                            alternative.transit.waitMinutes;
+                                          return (
+                                            <button
+                                              key={alternative.id}
+                                              type="button"
+                                              aria-pressed={isSelected}
+                                              onClick={() =>
+                                                setSelectedTransitModes((current) => ({
+                                                  ...current,
+                                                  [pairKey]: alternative.id,
+                                                }))
+                                              }
+                                              className={`rounded-lg border px-2.5 py-1 text-[10px] font-bold transition ${
+                                                isSelected
+                                                  ? "border-amber-900 bg-amber-900 text-white"
+                                                  : "border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                              }`}
+                                            >
+                                              {alternative.label} · ~{totalMinutes} min ·{" "}
+                                              {alternative.transit.fareRangePen
+                                                ? `S/ ${alternative.transit.fareRangePen[0].toFixed(2)}–${alternative.transit.fareRangePen[1].toFixed(2)}`
+                                                : `S/ ${alternative.transit.farePen.toFixed(2)}`}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <>
                                 <div className="flex w-full min-w-0 items-center gap-2.5">
                                   <div className="w-9 h-9 rounded-xl bg-amber-800 text-white flex items-center justify-center shrink-0 font-bold text-lg shadow-2xs">
                                     {transit.vehicleType === "caminata"
                                       ? "🚶"
-                                      : transit.vehicleType === "taxi"
-                                      ? "🚕"
                                       : transit.vehicleType === "combi"
                                       ? "🚐"
                                       : transit.vehicleType === "mototaxi"
@@ -2335,13 +2394,9 @@ export function HomePlacesClient({
                                         Leg {legId}
                                       </span>
                                       <span className="font-bold text-amber-950 text-sm">
-                                        {transit.vehicleType === "micro" ? "Microbús" : transit.vehicleType === "combi" ? "Combi" : transit.vehicleType === "bus" ? "Bus" : transit.vehicleType === "mototaxi" ? "Mototaxi" : transit.vehicleType === "taxi" ? "Taxi / Aplicativo" : "Caminata"}
+                                        {transit.vehicleType === "micro" ? "Microbús" : transit.vehicleType === "combi" ? "Combi" : transit.vehicleType === "bus" ? "Bus" : transit.vehicleType === "mototaxi" ? "Mototaxi" : "Caminata"}
                                       </span>
-                                      {transit.vehicleType === "taxi" ? (
-                                        <span className="rounded-full bg-amber-900/10 px-2 py-1 text-[10px] font-bold text-amber-950">
-                                          Servicio directo
-                                        </span>
-                                      ) : transit.vehicleType !== "caminata" && <span
+                                      {transit.vehicleType !== "caminata" && <span
                                         className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold"
                                         style={{
                                           backgroundColor: transit.badgeColor ?? "#92400E",
@@ -2361,22 +2416,6 @@ export function HomePlacesClient({
                                         <p>
                                           <b>Camina:</b> {place.name} → {nextPlace?.name}; {walkMeasure("to-place", [place.lat, place.lon], [nextPlace?.lat ?? place.lat, nextPlace?.lon ?? place.lon])}.
                                         </p>
-                                      ) : transit.vehicleType === "taxi" ? (
-                                        <>
-                                          <p>
-                                            <b>Aborda:</b> Taxi en {place.name} (en puerta, paradero de taxis o solicita por app Yango / Uber / inDrive).
-                                          </p>
-                                          <p>
-                                            <b>Trayecto directo:</b> {place.name} → {nextPlace?.name} (sin transbordos ni caminata a paraderos).
-                                          </p>
-                                          <p>
-                                            <b>Tarifa estimada:</b>{" "}
-                                            {transit.fareRangePen
-                                              ? `S/ ${transit.fareRangePen[0].toFixed(2)} – ${transit.fareRangePen[1].toFixed(2)}`
-                                              : `Aprox. S/ ${transit.farePen.toFixed(2)}`}{" "}
-                                            · viaje directo ~{transit.estimatedMinutes} min.
-                                          </p>
-                                        </>
                                       ) : (
                                         <>
                                           <ol className="list-decimal space-y-1 pl-5">
@@ -2439,11 +2478,6 @@ export function HomePlacesClient({
                                         </>
                                       )}
                                     </div>
-                                    {transit.vehicleType === "taxi" && transit.warning && (
-                                      <p className="mt-1.5 text-[10px] text-amber-800/80">
-                                        {transit.warning}
-                                      </p>
-                                    )}
                                     {alternatives.length > 1 && (
                                       <div
                                         className="mt-2 flex flex-wrap gap-1.5"
@@ -2515,6 +2549,8 @@ export function HomePlacesClient({
                                       : `~${totalTravelMinutes} min total`}
                                   </span>
                                 </div>
+                                  </>
+                                )}
                               </article>
                             )}
                           </React.Fragment>

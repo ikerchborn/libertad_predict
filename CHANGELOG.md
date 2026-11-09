@@ -8,17 +8,18 @@ registra cambios pequeños de formato.
 
 ### Experiencia de usuario y navegación interactiva (LibertadGO)
 
+- Se simplificó la tarjeta de tramo en Taxi a una sola línea («🚕 Taxi · S/ 18–23 · ~18 min») con botón «Ver detalle» desplegable.
+- Se resumieron los textos largos de advertencia a una sola línea con ícono ⓘ y tooltip explicativo, y se retiró la sección de Notas para mantener el flujo limpio.
 - Auditoría UX con prueba en navegador: tras crear el viaje se abre directamente el itinerario (antes quedaba en un Resumen en ceros sin siguiente paso) y el Resumen ahora tiene botones de acción.
 - Se eliminó información inventada: «✓ Verificado» sin calificación, puntaje 50 por defecto, horario sugerido genérico, descripción genérica «verificada» y valores de clima de relleno (ahora «Sin dato» / «Sin pronóstico»).
 - Las fechas del viaje se validan (salida no anterior a llegada, dentro del pronóstico) y las predeterminadas parten de hoy.
 - Presupuesto vacío muestra una guía en lugar de S/ 0.00; se aclara que no incluye entradas, comida ni hospedaje.
 - Tooltips para Hotel Ancla y Modo Viaje; tarjetas de viajes accesibles con teclado; marca unificada a LibertadGO; encabezado del catálogo ya no se comprime.
 - Se incorporó la sección «Explorar Servicios» en el itinerario con accesos directos a Comida, Hoteles y Actividades que filtran instantáneamente el catálogo.
-- Se implementó la tarjeta «Notas del Viaje» con auto-guardado en tiempo real en la persistencia local de viajes.
 - Se optimizó la tarjeta «Presupuesto Estimado de Transporte» por día con formato claro de tarifas, tiempo en minutos y avisos de verificación local.
 - Se configuró el diseño dividido de escritorio: el itinerario ocupa 7 columnas y el mapa 5 columnas lado a lado, evitando desplazamientos verticales innecesarios.
 - Se añadió el botón «Ampliar mapa» / «Restaurar mapa» en la cabecera del mapa territorial.
-- Se agregaron accesos directos en la barra lateral para «Notas» y «Lugares».
+- Se agregó acceso directo en la barra lateral para «Lugares».
 - Se integró la opción de estimación de Taxi con rango de tarifas y minutos para trayectos sin micro directo.
 
 ### Interacción y trazos del mapa

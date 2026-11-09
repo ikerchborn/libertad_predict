@@ -2205,6 +2205,8 @@ export function HomePlacesClient({
                         place={mapCenterPlace}
                         routeSegments={routeSegments}
                         routePlaces={activeDay?.places || []}
+                        catalogPlaces={initialPlaces}
+                        catalogKind={listCategory}
                         selectedPlace={selectedMapPlace}
                         hotelAnchor={trip.hotelAnchor}
                         selectedLegId={selectedLegId}

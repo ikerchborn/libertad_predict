@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
 import type { LayerGroup, Map as LeafletMap, Marker } from 'leaflet';
 import { LocateFixed, MapPinned } from 'lucide-react';
-import type { NearbyPlace, Place, PlaceDetail } from '@/lib/types';
+import type { NearbyPlace, Place, PlaceDetail, PlaceKind } from '@/lib/types';
 
 export interface MapRouteSegment {
   routeId?: string;
@@ -39,6 +39,8 @@ interface PlaceMapProps {
   nearby?: NearbyPlace[];
   routePolyline?: [number, number][];
   routePlaces?: Place[];
+  catalogPlaces?: Place[];
+  catalogKind?: PlaceKind | 'all';
   selectedPlace?: Place | null;
   hotelAnchor?: Place | null;
   routeSegments?: MapRouteSegment[];
@@ -54,6 +56,8 @@ export default function PlaceMap({
   nearby = [],
   routePolyline = [],
   routePlaces = [],
+  catalogPlaces = [],
+  catalogKind = 'attraction',
   selectedPlace = null,
   hotelAnchor = null,
   routeSegments = [],
@@ -67,6 +71,8 @@ export default function PlaceMap({
   const mapInstanceRef = useRef<LeafletMap | null>(null);
   const routeLayersRef = useRef<Map<string, LayerGroup>>(new Map());
   const placeMarkersRef = useRef<Map<number, Marker>>(new Map());
+  const catalogMarkersLayerRef = useRef<LayerGroup | null>(null);
+  const catalogMarkersRef = useRef<Map<number, Marker>>(new Map());
   const initialMapViewRef = useRef<{
     center: [number, number];
     zoom: number;
@@ -94,6 +100,7 @@ export default function PlaceMap({
     let isMounted = true;
     const routeLayers = new Map<string, LayerGroup>();
     const placeMarkers = placeMarkersRef.current;
+    const catalogMarkers = catalogMarkersRef.current;
     let itineraryMarkersLayer: LayerGroup | null = null;
 
     async function initMap() {
@@ -174,6 +181,7 @@ export default function PlaceMap({
       routeLayersRef.current = routeLayers;
       itineraryMarkersLayer = L.layerGroup().addTo(map);
       itineraryMarkersLayerRef.current = itineraryMarkersLayer;
+      catalogMarkersLayerRef.current = L.layerGroup().addTo(map);
 
       // Use the canonical OSM tile host; the a/b/c subdomains are not policy-compliant.
       L.tileLayer(
@@ -603,6 +611,8 @@ export default function PlaceMap({
         mapInstanceRef.current = null;
       }
       placeMarkers.clear();
+      catalogMarkers.clear();
+      catalogMarkersLayerRef.current = null;
       if (itineraryMarkersLayerRef.current === itineraryMarkersLayer) {
         itineraryMarkersLayerRef.current = null;
       }
@@ -614,11 +624,99 @@ export default function PlaceMap({
   }, [place, nearby, routePolyline, routePlaces, hotelAnchor, routeSegments]);
 
   useEffect(() => {
+    let isCurrent = true;
+    const map = mapInstanceRef.current;
+    const layer = catalogMarkersLayerRef.current;
+    if (!map || !mapReady || !layer) return;
+
+    import('leaflet').then((L) => {
+      if (!isCurrent || mapInstanceRef.current !== map) return;
+
+      layer.clearLayers();
+      catalogMarkersRef.current.clear();
+
+      const anchors = routePlaces.length > 0
+        ? routePlaces
+        : [place];
+      const isNearActiveRoute = (candidate: Place) =>
+        anchors.some((anchor) =>
+          L.latLng(anchor.lat, anchor.lon).distanceTo(
+            L.latLng(candidate.lat, candidate.lon)
+          ) <= 10_000
+        );
+      const existingPlaceIds = new Set([
+        place.id,
+        ...routePlaces.map((routePlace) => routePlace.id),
+        ...nearby.map((nearbyPlace) => nearbyPlace.place.id),
+        ...(hotelAnchor ? [hotelAnchor.id] : []),
+      ]);
+
+      catalogPlaces
+        .filter((candidate) =>
+          (catalogKind === 'all' || candidate.kind === catalogKind) &&
+          !existingPlaceIds.has(candidate.id) &&
+          Number.isFinite(candidate.lat) &&
+          Number.isFinite(candidate.lon) &&
+          isNearActiveRoute(candidate)
+        )
+        .forEach((candidate) => {
+          const markerStyle: Record<PlaceKind, { color: string; icon: string; label: string }> = {
+            attraction: { color: '#0D9488', icon: '🏛️', label: 'Atractivo' },
+            lodging: { color: '#4F46E5', icon: '🛏️', label: 'Hospedaje' },
+            food: { color: '#D97706', icon: '🍽️', label: 'Gastronomía' },
+            activity: { color: '#0284C7', icon: '✦', label: 'Actividad' },
+            unclassified: { color: '#64748B', icon: '📍', label: 'Lugar' },
+          };
+          const style = markerStyle[candidate.kind] ?? markerStyle.unclassified;
+          const icon = L.divIcon({
+            className: 'custom-catalog-pin',
+            html: `<div class="map-catalog-marker" aria-hidden="true" style="--marker-color:${style.color}">${style.icon}</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+          });
+          const marker = L.marker([candidate.lat, candidate.lon], {
+            icon,
+            keyboard: true,
+            title: `${candidate.name} · ${style.label}`,
+            alt: `Seleccionar ${candidate.name}, ${style.label}`,
+            zIndexOffset: 250,
+          })
+            .addTo(layer)
+            .on('click', () => onSelectPlaceRef.current?.(candidate));
+          catalogMarkersRef.current.set(candidate.id, marker);
+          if (selectedPlace?.id === candidate.id) {
+            marker.getElement()?.classList.add('map-place-focused');
+          }
+        });
+    }).catch((error: unknown) => {
+      console.error('No se pudieron cargar los marcadores del catálogo:', error);
+    });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [
+    catalogPlaces,
+    catalogKind,
+    mapReady,
+    place,
+    nearby,
+    routePlaces,
+    hotelAnchor,
+    selectedPlace,
+  ]);
+
+  useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map || !mapReady) return;
 
     let selectedMarker: Marker | undefined;
     placeMarkersRef.current.forEach((marker, placeId) => {
+      const isSelected = placeId === selectedPlace?.id;
+      marker.getElement()?.classList.toggle('map-place-focused', isSelected);
+      if (isSelected) selectedMarker = marker;
+    });
+    catalogMarkersRef.current.forEach((marker, placeId) => {
       const isSelected = placeId === selectedPlace?.id;
       marker.getElement()?.classList.toggle('map-place-focused', isSelected);
       if (isSelected) selectedMarker = marker;
@@ -742,7 +840,7 @@ export default function PlaceMap({
   }, [isExpanded]);
 
   const mapContent = (
-    <div className={isExpanded ? 'relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-adobe-border bg-white shadow-2xl' : 'relative w-full'}>
+    <div className={`map-content ${isExpanded ? 'relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-adobe-border bg-white shadow-2xl' : 'relative w-full'}`}>
       <div className="flex items-center justify-between border-b border-adobe-border bg-white px-3 py-2">
         <span className="text-xs font-bold text-adobe-dark">Mapa y recorrido</span>
         <button
@@ -756,10 +854,11 @@ export default function PlaceMap({
       </div>
       <div
         ref={mapContainerRef}
+        data-map-canvas
         className={
           isExpanded
-            ? 'min-h-0 flex-1 w-full'
-            : 'h-80 w-full sm:h-96'
+            ? 'map-canvas min-h-0 flex-1 w-full'
+            : 'map-canvas h-80 w-full sm:h-96'
         }
       />
       {mapReady && (

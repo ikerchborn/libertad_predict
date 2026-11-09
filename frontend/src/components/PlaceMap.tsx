@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import 'leaflet/dist/leaflet.css';
-import type { LayerGroup, Map as LeafletMap } from 'leaflet';
+import type { LayerGroup, Map as LeafletMap, Marker } from 'leaflet';
+import { LocateFixed, MapPinned } from 'lucide-react';
 import type { NearbyPlace, Place, PlaceDetail } from '@/lib/types';
 
 export interface MapRouteSegment {
@@ -38,6 +39,7 @@ interface PlaceMapProps {
   nearby?: NearbyPlace[];
   routePolyline?: [number, number][];
   routePlaces?: Place[];
+  selectedPlace?: Place | null;
   hotelAnchor?: Place | null;
   routeSegments?: MapRouteSegment[];
   selectedLegId?: string | null;
@@ -52,6 +54,7 @@ export default function PlaceMap({
   nearby = [],
   routePolyline = [],
   routePlaces = [],
+  selectedPlace = null,
   hotelAnchor = null,
   routeSegments = [],
   selectedLegId = null,
@@ -63,11 +66,17 @@ export default function PlaceMap({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<LeafletMap | null>(null);
   const routeLayersRef = useRef<Map<string, LayerGroup>>(new Map());
+  const placeMarkersRef = useRef<Map<number, Marker>>(new Map());
+  const initialMapViewRef = useRef<{
+    center: [number, number];
+    zoom: number;
+  } | null>(null);
   const itineraryMarkersLayerRef = useRef<LayerGroup | null>(null);
   const onSelectLegRef = useRef(onSelectLeg);
   const onSelectTransitRouteRef = useRef(onSelectTransitRoute);
   const onSelectPlaceRef = useRef(onSelectPlace);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
@@ -84,10 +93,14 @@ export default function PlaceMap({
   useEffect(() => {
     let isMounted = true;
     const routeLayers = new Map<string, LayerGroup>();
+    const placeMarkers = placeMarkersRef.current;
     let itineraryMarkersLayer: LayerGroup | null = null;
 
     async function initMap() {
       setMapError(null);
+      setMapReady(false);
+      placeMarkers.clear();
+      initialMapViewRef.current = null;
       if (!mapContainerRef.current) return;
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
@@ -205,10 +218,14 @@ export default function PlaceMap({
         ? null
         : L.marker([place.lat, place.lon], {
             icon: mainIcon,
+            keyboard: true,
             title: place.name,
             alt: `Ver información de ${place.name}`,
           }).addTo(map);
-      mainMarker?.on('click', () => onSelectPlaceRef.current?.(place));
+      if (mainMarker) {
+        placeMarkers.set(place.id, mainMarker);
+        mainMarker.on('click', () => onSelectPlaceRef.current?.(place));
+      }
 
       const bounds = L.latLngBounds([L.latLng(place.lat, place.lon)]);
 
@@ -254,9 +271,11 @@ export default function PlaceMap({
 
         const m = L.marker([np.lat, np.lon], {
           icon: nearbyIcon,
+          keyboard: true,
           title: np.name,
           alt: `Ver información de ${np.name}`,
         }).addTo(map);
+        placeMarkers.set(np.id, m);
         m.on('click', () => onSelectPlaceRef.current?.(np));
       });
 
@@ -285,13 +304,14 @@ export default function PlaceMap({
           iconSize: [34, 34],
           iconAnchor: [17, 17],
         });
-        L.marker([hotelAnchor.lat, hotelAnchor.lon], {
+        const hotelMarker = L.marker([hotelAnchor.lat, hotelAnchor.lon], {
           icon: hotelIcon,
+          keyboard: true,
           title: hotelAnchor.name,
           alt: `Ver información de ${hotelAnchor.name}`,
-        })
-          .addTo(map)
-          .on('click', () => onSelectPlaceRef.current?.(hotelAnchor));
+        }).addTo(map);
+        placeMarkers.set(hotelAnchor.id, hotelMarker);
+        hotelMarker.on('click', () => onSelectPlaceRef.current?.(hotelAnchor));
       }
 
       // 2. Render Sequence Pins (#1, #2, #3...) for Day Itinerary
@@ -333,16 +353,18 @@ export default function PlaceMap({
             iconAnchor: [21, 18],
           });
 
-            L.marker([rp.lat, rp.lon], {
+            const routePlaceMarker = L.marker([rp.lat, rp.lon], {
               icon: orderIcon,
+              keyboard: true,
               zIndexOffset: 1000,
               title: rp.name,
               alt: `Ver información de ${rp.name}`,
             })
-              .addTo(markersLayer)
-              .on('click', () => {
-                onSelectPlaceRef.current?.(rp);
-              });
+              .addTo(markersLayer);
+            placeMarkers.set(rp.id, routePlaceMarker);
+            routePlaceMarker.on('click', () => {
+              onSelectPlaceRef.current?.(rp);
+            });
           });
         }
       }
@@ -552,6 +574,12 @@ export default function PlaceMap({
       if (nearby.length > 0 || (routePlaces && routePlaces.length > 0) || (routePolyline && routePolyline.length > 0) || routeSegments.length > 0) {
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false });
       }
+      const initialCenter = map.getCenter();
+      initialMapViewRef.current = {
+        center: [initialCenter.lat, initialCenter.lng],
+        zoom: map.getZoom(),
+      };
+      setMapReady(true);
 
       setTimeout(() => {
         if (isMounted && mapInstanceRef.current) {
@@ -574,6 +602,7 @@ export default function PlaceMap({
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      placeMarkers.clear();
       if (itineraryMarkersLayerRef.current === itineraryMarkersLayer) {
         itineraryMarkersLayerRef.current = null;
       }
@@ -583,6 +612,25 @@ export default function PlaceMap({
       }
     };
   }, [place, nearby, routePolyline, routePlaces, hotelAnchor, routeSegments]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady) return;
+
+    let selectedMarker: Marker | undefined;
+    placeMarkersRef.current.forEach((marker, placeId) => {
+      const isSelected = placeId === selectedPlace?.id;
+      marker.getElement()?.classList.toggle('map-place-focused', isSelected);
+      if (isSelected) selectedMarker = marker;
+    });
+
+    if (selectedPlace && selectedMarker) {
+      map.flyTo(selectedMarker.getLatLng(), Math.max(map.getZoom(), 15.4), {
+        animate: true,
+        duration: 0.6,
+      });
+    }
+  }, [selectedPlace, mapReady]);
 
   useEffect(() => {
     const mapElement = mapContainerRef.current;
@@ -612,6 +660,47 @@ export default function PlaceMap({
       });
     });
   }, [selectedLegId, routeSegments]);
+
+  const fitActiveItinerary = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const coordinates = [
+      ...routePlaces
+        .filter((routePlace) => Number.isFinite(routePlace.lat) && Number.isFinite(routePlace.lon))
+        .map((routePlace) => [routePlace.lat, routePlace.lon] as [number, number]),
+      ...routeSegments.flatMap((segment) =>
+        segment.coordinates.filter(
+          ([lat, lon]) => Number.isFinite(lat) && Number.isFinite(lon)
+        )
+      ),
+    ];
+    if (coordinates.length === 0) return;
+    if (coordinates.length === 1) {
+      map.flyTo(coordinates[0], Math.max(map.getZoom(), 15), {
+        animate: true,
+        duration: 0.6,
+      });
+      return;
+    }
+
+    map.fitBounds(coordinates, {
+      padding: [56, 56],
+      maxZoom: 16,
+      animate: true,
+      duration: 0.6,
+    });
+  };
+
+  const restoreInitialMapView = () => {
+    const map = mapInstanceRef.current;
+    const initialView = initialMapViewRef.current;
+    if (!map || !initialView) return;
+    map.flyTo(initialView.center, initialView.zoom, {
+      animate: true,
+      duration: 0.6,
+    });
+  };
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -653,7 +742,7 @@ export default function PlaceMap({
   }, [isExpanded]);
 
   const mapContent = (
-    <div className={isExpanded ? 'flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-adobe-border bg-white shadow-2xl' : 'w-full'}>
+    <div className={isExpanded ? 'relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-adobe-border bg-white shadow-2xl' : 'relative w-full'}>
       <div className="flex items-center justify-between border-b border-adobe-border bg-white px-3 py-2">
         <span className="text-xs font-bold text-adobe-dark">Mapa y recorrido</span>
         <button
@@ -673,6 +762,32 @@ export default function PlaceMap({
             : 'h-80 w-full sm:h-96'
         }
       />
+      {mapReady && (
+        <div className="absolute bottom-3 right-3 z-[1000] flex flex-col gap-1.5">
+            {routePlaces.length > 0 || routeSegments.length > 0 ? (
+              <button
+                type="button"
+                onClick={fitActiveItinerary}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-adobe-border bg-white/95 px-2.5 py-2 text-[11px] font-bold text-adobe-dark shadow-md transition hover:bg-white"
+                title="Encuadrar las paradas y tramos del día activo"
+                aria-label="Encuadrar el itinerario del día activo"
+              >
+                <LocateFixed className="h-3.5 w-3.5 text-moche-700" />
+                Itinerario
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={restoreInitialMapView}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-adobe-border bg-white/95 px-2.5 py-2 text-[11px] font-bold text-adobe-dark shadow-md transition hover:bg-white"
+              title="Volver a la vista general inicial del mapa"
+              aria-label="Volver a la vista general del mapa"
+            >
+              <MapPinned className="h-3.5 w-3.5 text-adobe-muted" />
+              Vista general
+            </button>
+        </div>
+      )}
     </div>
   );
 

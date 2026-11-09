@@ -2205,6 +2205,7 @@ export function HomePlacesClient({
                         place={mapCenterPlace}
                         routeSegments={routeSegments}
                         routePlaces={activeDay?.places || []}
+                        selectedPlace={selectedMapPlace}
                         hotelAnchor={trip.hotelAnchor}
                         selectedLegId={selectedLegId}
                         onSelectLeg={handleMapLegSelect}
@@ -2467,19 +2468,21 @@ export function HomePlacesClient({
                           >
                             Ver ficha completa
                           </Link>
-                          {!activeDay?.places.some(
+                          {activeDay?.places.some(
                             (itineraryPlace) => itineraryPlace.id === selectedMapPlaceInfo.id
-                          ) && (
+                          ) ? (
+                            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-100 px-2 py-1.5 text-[10px] font-bold text-emerald-800">
+                              <Check className="h-3 w-3" />
+                              En {activeDayLabel}
+                            </span>
+                          ) : (
                             <button
                               type="button"
-                              onClick={() => {
-                                if (!activeDay) return;
-                                addPlaceToDay(activeDay.id, selectedMapPlaceInfo);
-                                setIsStarted(true);
-                              }}
-                              className="rounded-lg bg-moche-600 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-moche-700"
+                              onClick={() => setPlaceToAdd(selectedMapPlaceInfo)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-moche-600 px-2 py-1.5 text-[10px] font-bold text-white hover:bg-moche-700"
                             >
-                              + {activeDayLabel}
+                              <Plus className="h-3 w-3" />
+                              Elegir viaje y día
                             </button>
                           )}
                         </div>

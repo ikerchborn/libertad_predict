@@ -15,6 +15,15 @@
   filter: grayscale(0.7) saturate(0.72);
 }
 
+.map-shell .leaflet-marker-icon.map-place-focused {
+  z-index: 2000 !important;
+}
+
+.map-shell .leaflet-marker-icon.map-place-focused > div {
+  transform: scale(1.18) !important;
+  box-shadow: 0 0 0 5px rgb(13 148 136 / 24%), 0 4px 12px rgb(15 23 42 / 30%) !important;
+}
+
 .map-shell .map-route-muted {
   opacity: 0.2 !important;
   transition: opacity 140ms ease;

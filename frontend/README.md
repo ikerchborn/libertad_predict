@@ -20,6 +20,20 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Extracting Trujillo routes
+
+From this directory, run:
+
+```bash
+node scripts/extract_truxdi_routes.mjs
+```
+
+The extractor requests route pages sequentially, waits 8-15 seconds between pages, and resumes from `scripts/progress.json`. It writes normalized route data to `src/data/rutas_trujillo.json`. Truxdi does not expose a route JSON endpoint in the public page requests; the extractor reads the public page payload and structured stop/map data instead. Any SVG trace is kept only when its georeferencing fit is within 25 m, and missing return geometry is never reversed or inferred.
+
+The planner uses the catalog's stop order and route geometry to find boarding/alighting pairs, includes an estimated six-minute wait, and validates longer access walks against OSRM where available. Only geometries marked verified are rendered as solid lines; other traces remain referential and display a warning. A missing physical landmark is not inferred—the instructions ask the rider to confirm the exact stop with the transport company. Truxdi provides a line palette only for some services; other badges use a stable app color and are not represented as official company colors.
+
+The scanned August 2018 municipal plan lists 37 proposed routes but no current GPS traces. It is treated as historical context only and is not used to fill missing geometry.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

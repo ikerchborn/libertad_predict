@@ -521,8 +521,17 @@ export default function TripPlanner({
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-bold text-amber-950 text-xs truncate">{transit.serviceName}</span>
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-200 text-amber-900 font-mono">
-                              {transit.code}
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold"
+                              style={{
+                                backgroundColor: transit.badgeColor ?? "#92400E",
+                                color: transit.textColor ?? "#FFFFFF",
+                              }}
+                            >
+                              {transit.routeCode ?? transit.code}
+                              <span className="font-semibold">
+                                {transit.companyName ?? transit.serviceName}
+                              </span>
                             </span>
                           </div>
                           <div className="text-[11px] text-amber-800 line-clamp-1 mt-0.5">
@@ -547,10 +556,35 @@ export default function TripPlanner({
                             </div>
                           )}
                           <div className="text-[10px] text-amber-700/80 flex items-center gap-1.5 mt-0.5">
-                            <span className="truncate">Subida: <b>{transit.boardingStop}</b></span>
+                            <span className="truncate">
+                              Paso 1: caminar hacia <b>{transit.boardingStop}</b> (
+                              {transit.boardingLandmarkHint})
+                            </span>
                             <span>&bull;</span>
-                            <span className="truncate">Bajada: <b>{transit.dropoffStop}</b></span>
+                            <span className="truncate">
+                              Paso 3: descender en <b>{transit.dropoffStop}</b> (
+                              {transit.dropoffLandmarkHint})
+                            </span>
                           </div>
+                          {transit.routeLegs?.map((leg, legIndex) => (
+                            <div
+                              key={`${leg.code}-${legIndex}`}
+                              className="mt-1 flex flex-wrap items-center gap-1 text-[10px]"
+                            >
+                              <span
+                                className="rounded-full px-2 py-0.5 font-bold"
+                                style={{
+                                  backgroundColor: leg.badgeColor ?? "#92400E",
+                                  color: leg.textColor ?? "#FFFFFF",
+                                }}
+                              >
+                                {leg.routeCode ?? leg.code} · {leg.companyName ?? leg.serviceName}
+                              </span>
+                              <span className="text-amber-800">
+                                Paso {legIndex === 0 ? 2 : legIndex * 3 + 2}: abordar en {leg.boardingStop} ({leg.boardingLandmarkHint}); descender en {leg.dropoffStop} ({leg.dropoffLandmarkHint}).
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 

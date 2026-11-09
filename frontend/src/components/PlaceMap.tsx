@@ -12,6 +12,10 @@ export interface MapRouteSegment {
   label: string;
   distanceKm?: number;
   routeColor?: string;
+  routeCode?: string;
+  companyName?: string;
+  badgeColor?: string;
+  textColor?: string;
   vehicleType?: 'micro' | 'combi' | 'bus' | 'colectivo' | 'mototaxi' | 'taxi';
   legId?: string;
   tripLabel?: string;
@@ -21,6 +25,8 @@ export interface MapRouteSegment {
   fareRangePen?: [number, number];
   boardingStop?: string;
   dropoffStop?: string;
+  boardingLandmarkHint?: string;
+  dropoffLandmarkHint?: string;
   routeGeometryVerified?: boolean;
   walkPhase?: 'to-board' | 'transfer' | 'to-place';
   isApproximate?: boolean;
@@ -85,6 +91,10 @@ export default function PlaceMap({
       farePen?: number;
       fareRangePen?: [number, number];
       routeColor?: string;
+      routeCode?: string;
+      companyName?: string;
+      badgeColor?: string;
+      textColor?: string;
       vehicleType?: MapRouteSegment['vehicleType'];
       routeGeometryVerified?: boolean;
     }>
@@ -105,6 +115,10 @@ export default function PlaceMap({
         existing.farePen = segment.farePen;
         existing.fareRangePen = segment.fareRangePen;
         existing.routeColor = segment.routeColor;
+        existing.routeCode = segment.routeCode;
+        existing.companyName = segment.companyName;
+        existing.badgeColor = segment.badgeColor;
+        existing.textColor = segment.textColor;
         existing.vehicleType = segment.vehicleType;
         existing.routeGeometryVerified = segment.routeGeometryVerified;
       } else if (segment.kind === 'transit') {
@@ -129,6 +143,10 @@ export default function PlaceMap({
       farePen: segment.farePen,
       fareRangePen: segment.fareRangePen,
       routeColor: segment.routeColor,
+      routeCode: segment.routeCode,
+      companyName: segment.companyName,
+      badgeColor: segment.badgeColor,
+      textColor: segment.textColor,
       vehicleType: segment.vehicleType,
       routeGeometryVerified: segment.routeGeometryVerified,
     });
@@ -361,11 +379,6 @@ export default function PlaceMap({
 
       // 3. Render Route Polyline from OSRM
       if (routeSegments.length > 0) {
-        const makeTooltip = (text: string) => {
-          const element = document.createElement('span');
-          element.textContent = text;
-          return element;
-        };
         routeSegments.forEach((segment, index) => {
           if (segment.coordinates.length < 2) return;
           const routeKey = segment.routeId ?? segment.routeColor ?? `segment-${index}`;
@@ -378,7 +391,7 @@ export default function PlaceMap({
             segment.kind === 'walking'
               ? '#1D4ED8'
               : segment.kind === 'transit'
-                ? segment.routeColor ?? '#D97706'
+                ? segment.badgeColor ?? segment.routeColor ?? '#D97706'
                 : '#64748B';
           const legClass = `map-route-leg-${segment.legId ?? 'other'}`;
           const routeIsVerified =
@@ -408,14 +421,26 @@ export default function PlaceMap({
             className: `map-route-line map-route-${segment.kind} ${legClass}`,
             lineJoin: 'round',
           }).addTo(routeLayer);
-          const routeTooltip =
+          const routeTooltip = document.createElement('div');
+          routeTooltip.className = 'flex flex-col gap-1';
+          if (segment.kind === 'transit') {
+            const badge = document.createElement('span');
+            badge.textContent =
+              `${segment.routeCode ?? segment.label.split(':')[0]} · ${segment.companyName ?? 'Transporte referencial'}`;
+            badge.style.cssText =
+              `display:inline-block;width:fit-content;padding:2px 7px;border-radius:999px;font-weight:800;background:${segment.badgeColor ?? color};color:${segment.textColor ?? '#fff'}`;
+            routeTooltip.appendChild(badge);
+          }
+          const routeDescription = document.createElement('span');
+          routeDescription.textContent =
             `${segment.label}${segment.distanceKm != null ? ` · ${segment.distanceKm.toFixed(1)} km` : ''}` +
             (segment.kind === 'transit'
               ? routeIsVerified
                 ? ' · Traza verificada'
                 : ' · Recorrido referencial entre paraderos'
               : '');
-          line.bindTooltip(makeTooltip(routeTooltip), { sticky: true });
+          routeTooltip.appendChild(routeDescription);
+          line.bindTooltip(routeTooltip, { sticky: true });
           if (segment.kind === 'transit' && segment.estimatedMinutes != null) {
             const midpoint =
               segment.coordinates[Math.floor(segment.coordinates.length / 2)];
@@ -433,37 +458,57 @@ export default function PlaceMap({
           }
           const start = segment.coordinates[0];
           const end = segment.coordinates[segment.coordinates.length - 1];
-          const endpointIcon = (action: string) =>
+          const endpointIcon = (action: string): HTMLElement => {
+            const container = document.createElement('div');
+            container.className = 'route-endpoint-pin-content';
+            const badge = document.createElement('span');
+            badge.textContent = segment.routeCode ?? segment.legId ?? '';
+            badge.style.cssText =
+              `display:inline-flex;align-items:center;justify-content:center;min-width:24px;padding:2px 5px;border-radius:999px;background:${segment.badgeColor ?? color};color:${segment.textColor ?? '#fff'};font-size:10px;font-weight:800`;
+            const label = document.createElement('span');
+            label.textContent = `${segment.vehicleType === 'taxi' ? '🚕' : '🚌'} ${action}`;
+            container.append(badge, label);
+            return container;
+          };
+          const endpointIconForLeaflet = (action: string) =>
             L.divIcon({
               className: `route-endpoint-pin ${legClass}`,
-              html: `<div>${segment.vehicleType === 'taxi' ? '🚕' : '🚌'} ${action} ${segment.legId ?? ''}</div>`,
+              html: endpointIcon(action),
               iconSize: [88, 30],
               iconAnchor: [44, 43],
             });
           if (segment.kind === 'transit') {
             const boardingMarker = L.marker(start, {
-              icon: endpointIcon('Sube'),
+              icon: endpointIconForLeaflet('Sube'),
               zIndexOffset: 700,
             }).addTo(routeLayer);
+            const boardingTooltip = document.createElement('div');
+            const boardingTitle = document.createElement('strong');
+            boardingTitle.textContent =
+              `Paso 2: Abordar ${segment.companyName ?? 'el servicio'} (${segment.routeCode ?? segment.legId ?? 'ruta referencial'})`;
+            const boardingLocation = document.createElement('div');
+            boardingLocation.textContent =
+              `${segment.boardingStop ?? 'Paradero referencial'} — ${segment.boardingLandmarkHint ?? 'confirma el punto exacto antes de abordar.'}`;
+            boardingTooltip.append(boardingTitle, boardingLocation);
             boardingMarker
-              .bindTooltip(
-                makeTooltip(
-                  `Leg ${segment.legId ?? ''} · Sube en ${segment.boardingStop ?? 'paradero referencial'}`
-                )
-              )
+              .bindTooltip(boardingTooltip)
               .on('click', () => {
                 if (segment.legId) onSelectLegRef.current?.(segment.legId);
               });
             const dropoffMarker = L.marker(end, {
-              icon: endpointIcon('Baja'),
+              icon: endpointIconForLeaflet('Baja'),
               zIndexOffset: 700,
             }).addTo(routeLayer);
+            const dropoffTooltip = document.createElement('div');
+            const dropoffTitle = document.createElement('strong');
+            dropoffTitle.textContent =
+              `Paso 3: Descender en ${segment.dropoffStop ?? 'paradero referencial'}`;
+            const dropoffLocation = document.createElement('div');
+            dropoffLocation.textContent =
+              segment.dropoffLandmarkHint ?? 'Confirma con el conductor el punto de descenso.';
+            dropoffTooltip.append(dropoffTitle, dropoffLocation);
             dropoffMarker
-              .bindTooltip(
-                makeTooltip(
-                  `Leg ${segment.legId ?? ''} · Baja en ${segment.dropoffStop ?? 'paradero referencial'}`
-                )
-              )
+              .bindTooltip(dropoffTooltip)
               .on('click', () => {
                 if (segment.legId) onSelectLegRef.current?.(segment.legId);
               });

@@ -2,6 +2,7 @@ import type { Place } from '@/lib/types';
 import { haversineKm } from '@/lib/routeOptimizer';
 import { fetchOsrmRoute, type OsrmRouteResult } from '@/lib/osrmService';
 import transportCatalogJson from '@/data/transport_outside_trujillo.json';
+import truxdiRouteData from '@/data/rutas_trujillo.json';
 
 type CatalogVehicleType = 'bus' | 'combi' | 'colectivo' | 'mototaxi';
 type CatalogConfidence = 'alta' | 'media' | 'baja';
@@ -11,12 +12,18 @@ interface CatalogStop {
   name: string;
   latitude: number;
   longitude: number;
+  address?: string;
+  landmark_hint?: string;
 }
 
 interface CatalogRoute {
   id: string;
   code: string;
   serviceName: string;
+  route_code?: string;
+  company_name?: string;
+  badge_color?: string;
+  text_color?: string;
   vehicleType: CatalogVehicleType;
   category?: string;
   farePen: number;
@@ -41,6 +48,8 @@ interface CatalogRoute {
     };
   };
   geometryVerified?: boolean;
+  geometry_ida_verified?: boolean;
+  geometry_vuelta_verified?: boolean;
   headwayMinutes?: number;
   confidence: CatalogConfidence;
   source: string;
@@ -59,9 +68,52 @@ interface TransportCatalog {
   }>;
 }
 
+type TruxdiDirection = 'ida' | 'vuelta';
+
+interface TruxdiStop {
+  name: string;
+  coordinates: [number, number];
+  direction: TruxdiDirection | null;
+  position: number;
+  geometry_position?: number;
+  geometry_distance_m?: number;
+  landmark_hint?: string;
+}
+
+interface TruxdiRoute {
+  route_id: string;
+  route_name?: string | null;
+  route_code?: string | null;
+  source_route_code?: string | null;
+  company_name?: string | null;
+  vehicle_type?: 'micro' | 'combi' | null;
+  estimated_minutes?: number | null;
+  badge_color?: string | null;
+  text_color?: string | null;
+  fare: { standard: number | null; currency: 'PEN' };
+  geometry_ida: [number, number][];
+  geometry_vuelta: [number, number][];
+  geometry_ida_verified: boolean;
+  geometry_vuelta_verified: boolean;
+  stops: TruxdiStop[];
+  direction_sources: Array<{
+    direction: string;
+    review_status: string;
+    confidence: number | null;
+  }>;
+}
+
 const transportCatalog = transportCatalogJson as unknown as TransportCatalog;
 const catalogStops = new Map(transportCatalog.stops.map((stop) => [stop.id, stop]));
 const catalogRoutes = new Map(transportCatalog.routes.map((route) => [route.id, route]));
+const truxdiRoutes = (
+  truxdiRouteData as unknown as { routes: TruxdiRoute[] }
+).routes;
+const truxdiGeometryDistanceCache = new Map<string, number>();
+const truxdiCandidatesCache = new Map<
+  string,
+  Array<{ transit: TransitOption; totalEstimatedMinutes: number }>
+>();
 
 export interface TransitOption {
   code: string;
@@ -84,6 +136,12 @@ export interface TransitOption {
   routeDistanceKm?: number;
   warning?: string;
   routeColor?: string;
+  routeCode?: string;
+  companyName?: string;
+  badgeColor?: string;
+  textColor?: string;
+  boardingLandmarkHint?: string;
+  dropoffLandmarkHint?: string;
   routeLegs?: Array<{
     code: string;
     serviceName: string;
@@ -98,6 +156,12 @@ export interface TransitOption {
     routeGeometry?: [number, number][];
     routeGeometryVerified?: boolean;
     routeColor: string;
+    routeCode?: string;
+    companyName?: string;
+    badgeColor?: string;
+    textColor?: string;
+    boardingLandmarkHint?: string;
+    dropoffLandmarkHint?: string;
   }>;
 }
 
@@ -126,11 +190,20 @@ const ROUTE_COLORS = [
   '#BE123C',
   '#A16207',
 ];
+const TEXT_ON_DARK = '#FFFFFF';
 const walkingRouteCache = new Map<string, Promise<OsrmRouteResult | null>>();
 
 function getRouteColor(code: string): string {
   const hash = [...code].reduce((value, character) => value + character.charCodeAt(0), 0);
   return ROUTE_COLORS[hash % ROUTE_COLORS.length];
+}
+
+function getCatalogStop(id: string): CatalogStop | undefined {
+  return catalogStops.get(id);
+}
+
+function getBadgeColor(route: Pick<CatalogRoute, 'badge_color' | 'code'>): string {
+  return route.badge_color ?? getRouteColor(route.code);
 }
 
 function getWalkingRoute(
@@ -152,6 +225,247 @@ function getWalkingRoute(
     }
   );
   return route;
+}
+
+function getPolylineDistanceKm(coordinates: [number, number][]): number {
+  let distance = 0;
+  for (let index = 1; index < coordinates.length; index += 1) {
+    distance += haversineKm(
+      coordinates[index - 1][0],
+      coordinates[index - 1][1],
+      coordinates[index][0],
+      coordinates[index][1]
+    );
+  }
+  return distance;
+}
+
+function sliceTruxdiGeometry(
+  geometry: [number, number][],
+  startPosition: number,
+  endPosition: number
+): [number, number][] | null {
+  if (
+    geometry.length < 2 ||
+    !Number.isFinite(startPosition) ||
+    !Number.isFinite(endPosition) ||
+    startPosition < 0 ||
+    endPosition <= startPosition ||
+    endPosition > geometry.length - 1
+  ) {
+    return null;
+  }
+
+  const interpolate = (position: number): [number, number] => {
+    const index = Math.floor(position);
+    const fraction = position - index;
+    const start = geometry[index];
+    const end = geometry[Math.min(index + 1, geometry.length - 1)];
+    return [
+      start[0] + (end[0] - start[0]) * fraction,
+      start[1] + (end[1] - start[1]) * fraction,
+    ];
+  };
+  const segment: [number, number][] = [interpolate(startPosition)];
+  for (
+    let index = Math.floor(startPosition) + 1;
+    index < endPosition;
+    index += 1
+  ) {
+    segment.push(geometry[index]);
+  }
+  segment.push(interpolate(endPosition));
+  return segment.map(([longitude, latitude]) => [latitude, longitude]);
+}
+
+function getTruxdiFullRouteDistanceKm(
+  route: TruxdiRoute,
+  direction: TruxdiDirection,
+  geometry: [number, number][]
+): number {
+  const key = `${route.route_id}:${direction}`;
+  const cachedDistance = truxdiGeometryDistanceCache.get(key);
+  if (cachedDistance !== undefined) return cachedDistance;
+
+  const distance = getPolylineDistanceKm(
+    geometry.map(([longitude, latitude]) => [latitude, longitude])
+  );
+  truxdiGeometryDistanceCache.set(key, distance);
+  return distance;
+}
+
+function getTruxdiTransitCandidates(
+  origin: Place,
+  destination: Place
+): Array<{ transit: TransitOption; totalEstimatedMinutes: number }> {
+  const cacheKey = `${origin.lat},${origin.lon}>${destination.lat},${destination.lon}`;
+  const cachedCandidates = truxdiCandidatesCache.get(cacheKey);
+  if (cachedCandidates) return cachedCandidates;
+
+  const candidates: Array<{ transit: TransitOption; totalEstimatedMinutes: number }> = [];
+  const maxStopAccessKm = 0.8;
+
+  for (const route of truxdiRoutes) {
+    if (
+      !route.vehicle_type ||
+      typeof route.fare?.standard !== 'number' ||
+      !Number.isFinite(route.fare.standard)
+    ) {
+      continue;
+    }
+
+    for (const direction of ['ida', 'vuelta'] as const) {
+      const geometry =
+        direction === 'ida' ? route.geometry_ida : route.geometry_vuelta;
+      if (!Array.isArray(geometry) || geometry.length < 2) continue;
+
+      const sourceDirection = route.direction_sources.find((source) =>
+        direction === 'vuelta'
+          ? source.direction === 'inbound'
+          : source.direction === 'outbound' || source.direction === 'loop'
+      );
+      const geometryVerified =
+        direction === 'ida'
+          ? route.geometry_ida_verified
+          : route.geometry_vuelta_verified;
+      const stops = route.stops
+        .filter(
+          (stop) =>
+            stop.direction === direction &&
+            typeof stop.geometry_position === 'number' &&
+            (stop.geometry_distance_m ?? Infinity) <= 50
+        )
+        .sort((left, right) => left.position - right.position);
+      if (stops.length < 2) continue;
+      const fullRouteDistanceKm = getTruxdiFullRouteDistanceKm(
+        route,
+        direction,
+        geometry
+      );
+
+      const boardingCandidates = stops
+        .map((stop) => ({
+          stop,
+          distanceKm: haversineKm(
+            origin.lat,
+            origin.lon,
+            stop.coordinates[1],
+            stop.coordinates[0]
+          ),
+        }))
+        .filter(({ distanceKm }) => distanceKm <= maxStopAccessKm)
+        .sort((left, right) => left.distanceKm - right.distanceKm)
+        .slice(0, 3);
+
+      for (const boarding of boardingCandidates) {
+        const alightingCandidates = stops
+          .filter(
+            (stop) =>
+              stop.position > boarding.stop.position &&
+              (stop.geometry_position ?? -1) >
+                (boarding.stop.geometry_position ?? -1)
+          )
+          .map((stop) => ({
+            stop,
+            distanceKm: haversineKm(
+              destination.lat,
+              destination.lon,
+              stop.coordinates[1],
+              stop.coordinates[0]
+            ),
+          }))
+          .filter(({ distanceKm }) => distanceKm <= maxStopAccessKm)
+          .sort((left, right) => left.distanceKm - right.distanceKm)
+          .slice(0, 3);
+
+        for (const alighting of alightingCandidates) {
+          const routeGeometry = sliceTruxdiGeometry(
+            geometry,
+            boarding.stop.geometry_position!,
+            alighting.stop.geometry_position!
+          );
+          if (!routeGeometry || routeGeometry.length < 2) continue;
+
+          const routeDistanceKm = getPolylineDistanceKm(routeGeometry);
+          if (routeDistanceKm < 0.1) continue;
+          const estimatedMinutes =
+            route.estimated_minutes && fullRouteDistanceKm > 0
+              ? Math.max(
+                  2,
+                  Math.round(
+                    (route.estimated_minutes * routeDistanceKm) /
+                      fullRouteDistanceKm
+                  )
+                )
+              : Math.max(2, Math.round((routeDistanceKm / 18) * 60));
+          const routeCode =
+            route.route_code ?? route.source_route_code ?? route.route_id;
+          const badgeColor = route.badge_color ?? getRouteColor(routeCode);
+          const walkMinutes =
+            ((boarding.distanceKm + alighting.distanceKm) / 4.5) * 60 * 1.3;
+          const waitMinutes = 6;
+          const confidence: CatalogConfidence = geometryVerified
+            ? 'alta'
+            : (sourceDirection?.confidence ?? 0) >= 0.5
+              ? 'media'
+              : 'baja';
+
+          candidates.push({
+            totalEstimatedMinutes: walkMinutes + waitMinutes + estimatedMinutes,
+            transit: {
+              code: routeCode,
+              serviceName:
+                route.route_name ??
+                route.company_name ??
+                `Ruta ${routeCode}`,
+              vehicleType: route.vehicle_type,
+              farePen: route.fare.standard,
+              fareRangePen: [route.fare.standard, route.fare.standard],
+              estimatedMinutes,
+              waitMinutes,
+              boardingStop: boarding.stop.name,
+              dropoffStop: alighting.stop.name,
+              boardingPoint: [
+                boarding.stop.coordinates[1],
+                boarding.stop.coordinates[0],
+              ],
+              dropoffPoint: [
+                alighting.stop.coordinates[1],
+                alighting.stop.coordinates[0],
+              ],
+              instructions: `Camina hasta ${boarding.stop.name}, aborda ${route.company_name ?? routeCode} (${routeCode}) y desciende en ${alighting.stop.name}.`,
+              confidence,
+              source: `Truxdi · ${sourceDirection?.review_status ?? 'revision pendiente'}`,
+              routeGeometry,
+              routeGeometryVerified: geometryVerified,
+              routeDistanceKm,
+              routeColor: badgeColor,
+              routeCode,
+              companyName: route.company_name ?? route.route_name ?? routeCode,
+              badgeColor,
+              textColor: route.text_color ?? TEXT_ON_DARK,
+              boardingLandmarkHint:
+                boarding.stop.landmark_hint ??
+                'Sin referencia física publicada; confirma el punto exacto con la empresa.',
+              dropoffLandmarkHint:
+                alighting.stop.landmark_hint ??
+                'Sin referencia física publicada; confirma el punto exacto con la empresa.',
+              warning: geometryVerified
+                ? undefined
+                : 'Recorrido referencial: confirma la ruta y los paraderos con la empresa antes de abordar.',
+            },
+          });
+        }
+      }
+    }
+  }
+
+  const sortedCandidates = candidates.sort(
+    (left, right) => left.totalEstimatedMinutes - right.totalEstimatedMinutes
+  );
+  if (truxdiCandidatesCache.size >= 250) truxdiCandidatesCache.clear();
+  truxdiCandidatesCache.set(cacheKey, sortedCandidates);
+  return sortedCandidates;
 }
 
 function getRouteGeometry(
@@ -197,6 +511,12 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     throw new Error(`El catálogo de transporte no tiene paraderos para ${route.id}`);
   }
   const routeGeometry = getRouteGeometry(route, reverse);
+  const boardingStop = getCatalogStop(reverse ? route.dropoffStopId : route.boardingStopId);
+  const dropoffStop = getCatalogStop(reverse ? route.boardingStopId : route.dropoffStopId);
+  const routeGeometryVerified = reverse
+    ? route.geometry_vuelta_verified === true && Boolean(route.geometry_vuelta)
+    : (route.geometry_ida_verified ?? route.geometryVerified) === true &&
+      Boolean(route.geometry_ida ?? route.routeGeometry);
 
   return {
     code: route.code,
@@ -216,8 +536,16 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     confidence: route.confidence,
     source: route.source,
     routeGeometry,
-    routeGeometryVerified: route.geometryVerified === true && Boolean(routeGeometry),
-    routeColor: getRouteColor(route.code),
+    routeGeometryVerified: routeGeometryVerified && Boolean(routeGeometry),
+    routeColor: getBadgeColor(route),
+    routeCode: route.route_code ?? route.code,
+    companyName: route.company_name ?? route.serviceName,
+    badgeColor: getBadgeColor(route),
+    textColor: route.text_color ?? TEXT_ON_DARK,
+    boardingLandmarkHint: boardingStop?.landmark_hint ??
+      `${boarding.name}${boardingStop?.address ? ` · ${boardingStop.address}` : ''}; referencia aproximada, confirma el punto de abordaje.`,
+    dropoffLandmarkHint: dropoffStop?.landmark_hint ??
+      `${dropoff.name}${dropoffStop?.address ? ` · ${dropoffStop.address}` : ''}; confirma el punto de descenso.`,
   };
 }
 
@@ -234,7 +562,7 @@ function getCatalogRoute(
   ];
   const trujilloArea = new Set(['centro', 'huanchaco', 'chan_chan', 'moche', 'salaverry']);
 
-  for (const [outsideZone, cityZone, routeId] of directRoutes) {
+  for (const [outsideZone, , routeId] of directRoutes) {
     if (
       (fromZone === outsideZone && trujilloArea.has(toZone)) ||
       (toZone === outsideZone && trujilloArea.has(fromZone))
@@ -294,6 +622,12 @@ function getCatalogRoute(
         routeGeometry: leg.routeGeometry,
         routeGeometryVerified: leg.routeGeometryVerified,
         routeColor: leg.routeColor ?? getRouteColor(leg.code),
+        routeCode: leg.routeCode,
+        companyName: leg.companyName,
+        badgeColor: leg.badgeColor,
+        textColor: leg.textColor,
+        boardingLandmarkHint: leg.boardingLandmarkHint,
+        dropoffLandmarkHint: leg.dropoffLandmarkHint,
       })),
     };
   }
@@ -341,10 +675,11 @@ export function calculateTaxiEstimate(distKm: number): {
   return { fareMin, fareMax, fareAvg, estimatedMinutes };
 }
 
-export function getTransitBetweenPlaces(
+function getTransitBetweenPlacesBase(
   origin: Place,
   destination: Place,
-  urbanFare = 2.5
+  urbanFare = 2.5,
+  includeTruxdi = true
 ): TransitOption {
   const dist = haversineKm(origin.lat, origin.lon, destination.lat, destination.lon);
   const fromZone = getZone(origin);
@@ -364,6 +699,25 @@ export function getTransitBetweenPlaces(
       dropoffPoint: [destination.lat, destination.lon],
       instructions: `Trayecto corto de ${Math.round(dist * 1000)} m en línea directa. La distancia real a pie puede ser mayor; sigue las calles peatonales.`,
     };
+  }
+
+  if (includeTruxdi) {
+    const truxdiOption = getTruxdiTransitCandidates(origin, destination).find(
+      ({ transit }) =>
+        haversineKm(
+          origin.lat,
+          origin.lon,
+          transit.boardingPoint[0],
+          transit.boardingPoint[1]
+        ) <= 0.3 &&
+        haversineKm(
+          transit.dropoffPoint[0],
+          transit.dropoffPoint[1],
+          destination.lat,
+          destination.lon
+        ) <= 0.3
+    )?.transit;
+    if (truxdiOption) return truxdiOption;
   }
 
   const catalogOption = getCatalogRoute(fromZone, toZone);
@@ -544,6 +898,146 @@ export function getTransitBetweenPlaces(
   };
 }
 
+function getTransitIdentity(code: string): {
+  routeCode: string;
+  companyName: string;
+  badgeColor: string;
+} {
+  const identities: Record<string, { routeCode: string; companyName: string; badgeColor: string }> = {
+    'M-06 B': { routeCode: 'B', companyName: 'Línea B (referencial)', badgeColor: '#1D4ED8' },
+    'M-04 A': { routeCode: 'A/B', companyName: 'Línea A / B de Huanchaco (referencial)', badgeColor: '#0369A1' },
+    'C-27 B': { routeCode: 'C-27', companyName: 'Combi Línea B (referencial)', badgeColor: '#047857' },
+    'C-14 S': { routeCode: 'S', companyName: 'Combi Línea S (referencial)', badgeColor: '#7E22CE' },
+    'TAXI-LOCAL': { routeCode: 'TAXI', companyName: 'Taxi local (referencial)', badgeColor: '#A16207' },
+    TAXI: { routeCode: 'TAXI', companyName: 'Taxi / aplicativo (referencial)', badgeColor: '#A16207' },
+    'RUTA-CAO': { routeCode: 'CAO', companyName: 'Transporte hacia El Brujo (referencial)', badgeColor: '#854D0E' },
+    'INTER-CHICAMA': { routeCode: 'IC', companyName: 'Chicama Express (referencial)', badgeColor: '#854D0E' },
+    'ANDINO-HUAMACHUCO': { routeCode: 'AH', companyName: 'Bus interandino (referencial)', badgeColor: '#0369A1' },
+    'RUTA-EL-BRUJO': { routeCode: 'EL BRUJO', companyName: 'Conexión a El Brujo (referencial)', badgeColor: '#047857' },
+  };
+  return identities[code] ?? {
+    routeCode: code,
+    companyName: code,
+    badgeColor: getRouteColor(code),
+  };
+}
+
+function getLandmarkHint(stopName: string, address?: string): string {
+  const stop = [...catalogStops.values()].find((candidate) => candidate.name === stopName);
+  if (stop?.landmark_hint) return stop.landmark_hint;
+  const reference = address ?? stop?.address;
+  return `${stopName}${reference ? ` (${reference})` : ''}; referencia aproximada, confirma el punto autorizado para abordar o descender.`;
+}
+
+function enrichTransitOption(transit: TransitOption): TransitOption {
+  const identity = getTransitIdentity(transit.code);
+  return {
+    ...transit,
+    routeCode: transit.routeCode ?? identity.routeCode,
+    companyName: transit.companyName ?? identity.companyName,
+    badgeColor: transit.badgeColor ?? identity.badgeColor,
+    textColor: transit.textColor ?? TEXT_ON_DARK,
+    routeColor: transit.routeColor ?? transit.badgeColor ?? identity.badgeColor,
+    boardingLandmarkHint:
+      transit.boardingLandmarkHint ?? getLandmarkHint(transit.boardingStop),
+    dropoffLandmarkHint:
+      transit.dropoffLandmarkHint ?? getLandmarkHint(transit.dropoffStop),
+    routeLegs: transit.routeLegs?.map((leg) => {
+      const legIdentity = getTransitIdentity(leg.code);
+      return {
+        ...leg,
+        routeCode: leg.routeCode ?? legIdentity.routeCode,
+        companyName: leg.companyName ?? legIdentity.companyName,
+        badgeColor: leg.badgeColor ?? legIdentity.badgeColor,
+        textColor: leg.textColor ?? TEXT_ON_DARK,
+        routeColor: leg.routeColor ?? leg.badgeColor ?? legIdentity.badgeColor,
+        boardingLandmarkHint:
+          leg.boardingLandmarkHint ?? getLandmarkHint(leg.boardingStop),
+        dropoffLandmarkHint:
+          leg.dropoffLandmarkHint ?? getLandmarkHint(leg.dropoffStop),
+      };
+    }),
+  };
+}
+
+export function getTransitBetweenPlaces(
+  origin: Place,
+  destination: Place,
+  urbanFare = 2.5
+): TransitOption {
+  return enrichTransitOption(
+    getTransitBetweenPlacesBase(origin, destination, urbanFare)
+  );
+}
+
+function getTransitFallbackWithoutTruxdi(
+  origin: Place,
+  destination: Place,
+  urbanFare: number
+): TransitOption {
+  return enrichTransitOption(
+    getTransitBetweenPlacesBase(origin, destination, urbanFare, false)
+  );
+}
+
+async function resolveTruxdiTransit(
+  origin: Place,
+  destination: Place
+): Promise<TransitOption | null> {
+  const candidates = getTruxdiTransitCandidates(origin, destination);
+  for (const candidate of candidates.slice(0, 2)) {
+    const transit = candidate.transit;
+    const accessDistances = [
+      haversineKm(
+        origin.lat,
+        origin.lon,
+        transit.boardingPoint[0],
+        transit.boardingPoint[1]
+      ),
+      haversineKm(
+        transit.dropoffPoint[0],
+        transit.dropoffPoint[1],
+        destination.lat,
+        destination.lon
+      ),
+    ];
+    const accessRoutes: Array<OsrmRouteResult | null> = await Promise.all([
+      accessDistances[0] > 0.3
+        ? getWalkingRoute([origin.lat, origin.lon], transit.boardingPoint)
+        : Promise.resolve(null),
+      accessDistances[1] > 0.3
+        ? getWalkingRoute(transit.dropoffPoint, [destination.lat, destination.lon])
+        : Promise.resolve(null),
+    ]);
+    const inaccessible = accessRoutes.some(
+      (route) =>
+        route &&
+        !route.isFallback &&
+        (route.distanceKm > 0.9 || route.durationMin > 12)
+    );
+    if (inaccessible) continue;
+
+    const unverifiedAccess = accessRoutes.some(
+      (route, index) =>
+        accessDistances[index] > 0.3 && (!route || route.isFallback)
+    );
+    return {
+      ...transit,
+      ...(unverifiedAccess
+        ? {
+            warning: [
+              transit.warning,
+              'No se pudo validar por OSRM el acceso peatonal a uno de los paraderos.',
+            ]
+              .filter(Boolean)
+              .join(' '),
+          }
+        : {}),
+    };
+  }
+  return null;
+}
+
 export async function resolveTransitBetweenPlaces(
   origin: Place,
   destination: Place,
@@ -555,8 +1049,12 @@ export async function resolveTransitBetweenPlaces(
     destination.lat,
     destination.lon
   );
-  if (directDistanceKm < 0.3 || directDistanceKm > 0.8) {
+  if (directDistanceKm < 0.3) {
     return getTransitBetweenPlaces(origin, destination, urbanFare);
+  }
+  if (directDistanceKm > 0.8) {
+    const truxdiTransit = await resolveTruxdiTransit(origin, destination);
+    return truxdiTransit ?? getTransitFallbackWithoutTruxdi(origin, destination, urbanFare);
   }
 
   const walkingRoute = await getWalkingRoute(
@@ -587,13 +1085,20 @@ export async function resolveTransitBetweenPlaces(
     };
   }
 
-  const transit = getTransitBetweenPlaces(origin, destination, urbanFare);
+  const truxdiTransit = await resolveTruxdiTransit(origin, destination);
+  const transit =
+    truxdiTransit ?? getTransitFallbackWithoutTruxdi(origin, destination, urbanFare);
   const reason = !walkingRoute || walkingRoute.isFallback
     ? 'No se pudo confirmar una ruta peatonal por calles;'
     : `La ruta peatonal mide ${walkingRoute.distanceKm.toFixed(1)} km y toma unos ${walkingRoute.durationMin} min;`;
   return {
     ...transit,
-    warning: `${reason} considera transporte o confirma el cruce peatonal antes de salir.`,
+    warning: [
+      transit.warning,
+      `${reason} considera transporte o confirma el cruce peatonal antes de salir.`,
+    ]
+      .filter(Boolean)
+      .join(' '),
   };
 }
 

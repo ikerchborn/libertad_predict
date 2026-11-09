@@ -400,8 +400,9 @@ export default function PlaceMap({
           routeTooltip.className = 'flex flex-col gap-1';
           if (segment.kind === 'transit') {
             const badge = document.createElement('span');
-            badge.textContent =
-              `${segment.routeCode ?? segment.label.split(':')[0]} · ${segment.companyName ?? 'Transporte público'}`;
+            badge.textContent = segment.vehicleType === 'taxi'
+              ? 'Taxi / aplicativo'
+              : `${segment.routeCode ?? segment.label.split(':')[0]} · ${segment.companyName ?? 'Transporte público'}`;
             badge.style.cssText =
               `display:inline-block;width:fit-content;padding:2px 7px;border-radius:999px;font-weight:800;background:${segment.badgeColor ?? color};color:${segment.textColor ?? '#fff'}`;
             routeTooltip.appendChild(badge);
@@ -440,13 +441,20 @@ export default function PlaceMap({
           const endpointIcon = (action: string): HTMLElement => {
             const container = document.createElement('div');
             container.className = 'route-endpoint-pin-content';
-            const badge = document.createElement('span');
-            badge.textContent = segment.routeCode ?? segment.legId ?? '';
-            badge.style.cssText =
-              `display:inline-flex;align-items:center;justify-content:center;min-width:24px;padding:2px 5px;border-radius:999px;background:${segment.badgeColor ?? color};color:${segment.textColor ?? '#fff'};font-size:10px;font-weight:800`;
             const label = document.createElement('span');
-            label.textContent = `${segment.vehicleType === 'taxi' ? '🚕' : '🚌'} ${action}`;
-            container.append(badge, label);
+            if (segment.vehicleType === 'taxi') {
+              label.textContent = `🚕 ${action === 'Sube' ? 'Punto de recojo' : 'Destino'}`;
+              label.style.cssText =
+                'display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border-radius:999px;background:#A16207;color:#fff;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgb(15 23 42 / 35%)';
+              container.append(label);
+            } else {
+              const badge = document.createElement('span');
+              badge.textContent = segment.routeCode ?? segment.legId ?? '';
+              badge.style.cssText =
+                `display:inline-flex;align-items:center;justify-content:center;min-width:24px;padding:2px 5px;border-radius:999px;background:${segment.badgeColor ?? color};color:${segment.textColor ?? '#fff'};font-size:10px;font-weight:800`;
+              label.textContent = `🚌 ${action}`;
+              container.append(badge, label);
+            }
             return container;
           };
           const collidesWithPlaceMarker = (point: [number, number]) =>
@@ -458,16 +466,19 @@ export default function PlaceMap({
           const endpointIconForLeaflet = (
             action: string,
             point: [number, number]
-          ) =>
-            L.divIcon({
+          ) => {
+            const isTaxi = segment.vehicleType === 'taxi';
+            const iconSize: [number, number] = isTaxi ? [132, 32] : [88, 30];
+            return L.divIcon({
               className: `route-endpoint-pin ${legClass}`,
               html: endpointIcon(action),
-              iconSize: [88, 30],
+              iconSize,
               iconAnchor: [
-                44,
-                collidesWithPlaceMarker(point) ? 67 : 43,
+                iconSize[0] / 2,
+                collidesWithPlaceMarker(point) ? iconSize[1] + 37 : iconSize[1] + 13,
               ],
             });
+          };
           if (segment.kind === 'transit') {
             const boardingMarker = L.marker(start, {
               icon: endpointIconForLeaflet('Sube', start),
@@ -475,10 +486,11 @@ export default function PlaceMap({
             }).addTo(routeLayer);
             const boardingTooltip = document.createElement('div');
             const boardingTitle = document.createElement('strong');
-            boardingTitle.textContent =
-              `Sube: ${segment.companyName ?? 'transporte público'}${segment.routeCode ? ` · Línea ${segment.routeCode}` : ''}`;
+            boardingTitle.textContent = segment.vehicleType === 'taxi'
+              ? 'Punto de recojo'
+              : `Sube: ${segment.companyName ?? 'transporte público'}${segment.routeCode ? ` · Línea ${segment.routeCode}` : ''}`;
             const boardingLocation = document.createElement('div');
-            const boardingStop = segment.boardingStop ?? 'Paradero sugerido';
+            const boardingStop = segment.boardingStop ?? (segment.vehicleType === 'taxi' ? 'Punto de partida' : 'Paradero sugerido');
             const boardingHint =
               segment.boardingLandmarkHint &&
               segment.boardingLandmarkHint !== boardingStop
@@ -499,8 +511,9 @@ export default function PlaceMap({
             }).addTo(routeLayer);
             const dropoffTooltip = document.createElement('div');
             const dropoffTitle = document.createElement('strong');
-            dropoffTitle.textContent =
-              `Baja en ${segment.dropoffStop ?? 'paradero sugerido'}`;
+            dropoffTitle.textContent = segment.vehicleType === 'taxi'
+              ? 'Destino'
+              : `Baja en ${segment.dropoffStop ?? 'paradero sugerido'}`;
             const dropoffLocation = document.createElement('div');
             const dropoffHint =
               segment.dropoffLandmarkHint &&

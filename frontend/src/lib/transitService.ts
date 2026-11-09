@@ -1125,6 +1125,7 @@ function getTransitIdentity(code: string): {
     'C-27 B': { routeCode: 'B', companyName: 'Combi Huanchaco', badgeColor: '#047857' },
     'C-14 S': { routeCode: 'S', companyName: 'Combi Línea S', badgeColor: '#7E22CE' },
     'TAXI-LOCAL': { routeCode: 'TAXI', companyName: 'Taxi local', badgeColor: '#A16207' },
+    'TAXI-DIRECTO': { routeCode: 'TAXI', companyName: 'Taxi / aplicativo', badgeColor: '#A16207' },
     TAXI: { routeCode: 'TAXI', companyName: 'Taxi / aplicativo', badgeColor: '#A16207' },
     'RUTA-CAO': { routeCode: 'CAO', companyName: 'Transporte a El Brujo', badgeColor: '#854D0E' },
     'INTER-CHICAMA': { routeCode: 'IC', companyName: 'Chicama Express', badgeColor: '#854D0E' },
@@ -1242,7 +1243,7 @@ function getDirectTaxiOption(
   const distanceKm = haversineKm(origin.lat, origin.lon, destination.lat, destination.lon);
   const taxi = calculateTaxiEstimate(distanceKm);
   return {
-    code: 'TAXI-DIRECTO',
+    code: 'TAXI',
     serviceName: 'Taxi directo / aplicativo',
     vehicleType: 'taxi',
     farePen: taxi.fareAvg,
@@ -1250,6 +1251,9 @@ function getDirectTaxiOption(
     estimatedMinutes: taxi.estimatedMinutes,
     waitMinutes: 0,
     routeColor: getRouteColor('TAXI-DIRECTO'),
+    routeCode: 'TAXI',
+    companyName: 'Taxi / aplicativo',
+    badgeColor: '#A16207',
     boardingStop: `Punto de partida (${origin.name})`,
     dropoffStop: `Destino (${destination.name})`,
     boardingPoint: [origin.lat, origin.lon],

@@ -29,6 +29,7 @@ import {
   Globe,
   Phone,
   BusFront,
+  CarFront,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -389,7 +390,6 @@ export function HomePlacesClient({
             dropoffStop: transit.dropoffStop,
             boardingLandmarkHint: transit.boardingLandmarkHint,
             dropoffLandmarkHint: transit.dropoffLandmarkHint,
-            isApproximate: true,
           });
           continue;
         }
@@ -532,7 +532,7 @@ export function HomePlacesClient({
               },
             };
           }
-          if (segment.kind === "transit") {
+          if (segment.kind === "transit" && segment.vehicleType !== "taxi") {
             return {
               ...segment,
               route: {
@@ -616,8 +616,12 @@ export function HomePlacesClient({
               dropoffStop: segment.dropoffStop,
               boardingLandmarkHint: segment.boardingLandmarkHint,
               dropoffLandmarkHint: segment.dropoffLandmarkHint,
-              routeGeometryVerified: segment.routeGeometryVerified,
               walkPhase: segment.walkPhase,
+              routeGeometryVerified:
+                segment.routeGeometryVerified ??
+                (segment.vehicleType === "taxi" &&
+                  Boolean(segment.route) &&
+                  !segment.route?.isFallback),
               isApproximate: segment.isApproximate ?? segment.route?.isFallback ?? false,
             }))
         );
@@ -1983,7 +1987,11 @@ export function HomePlacesClient({
                                       <span className="font-bold text-amber-950 text-sm">
                                         {transit.vehicleType === "micro" ? "Microbús" : transit.vehicleType === "combi" ? "Combi" : transit.vehicleType === "bus" ? "Bus" : transit.vehicleType === "mototaxi" ? "Mototaxi" : transit.vehicleType === "taxi" ? "Taxi / Aplicativo" : "Caminata"}
                                       </span>
-                                      {transit.vehicleType !== "caminata" && <span
+                                      {transit.vehicleType === "taxi" ? (
+                                        <span className="rounded-full bg-amber-900/10 px-2 py-1 text-[10px] font-bold text-amber-950">
+                                          Servicio directo
+                                        </span>
+                                      ) : transit.vehicleType !== "caminata" && <span
                                         className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold"
                                         style={{
                                           backgroundColor: transit.badgeColor ?? "#92400E",
@@ -2116,8 +2124,10 @@ export function HomePlacesClient({
                                                   : "border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
                                               }`}
                                             >
-                                              {alternative.label} · ~{totalMinutes} min · S/{" "}
-                                              {alternative.transit.farePen.toFixed(2)}
+                                              {alternative.label} · ~{totalMinutes} min ·{" "}
+                                              {alternative.transit.fareRangePen
+                                                ? `S/ ${alternative.transit.fareRangePen[0].toFixed(2)}–${alternative.transit.fareRangePen[1].toFixed(2)}`
+                                                : `S/ ${alternative.transit.farePen.toFixed(2)}`}
                                             </button>
                                           );
                                         })}
@@ -2500,16 +2510,26 @@ export function HomePlacesClient({
                               >
                                 <div className="min-w-0">
                                   <span className="text-[10px] font-bold uppercase tracking-wider text-white/75">
-                                    Transporte Público Urbano de Trujillo
+                                    {selectedTransitRoute.vehicleType === "taxi"
+                                      ? "Servicio de Taxi / Aplicativo"
+                                      : "Transporte Público Urbano de Trujillo"}
                                   </span>
                                   <strong className="mt-1 block truncate text-xl">
-                                    {selectedTransitRoute.routeCode ?? selectedTransitRoute.label.split(":")[0]}
+                                    {selectedTransitRoute.vehicleType === "taxi"
+                                      ? "Taxi directo"
+                                      : selectedTransitRoute.routeCode ?? selectedTransitRoute.label.split(":")[0]}
                                   </strong>
                                   <span className="block truncate text-xs text-white/85">
-                                    {selectedTransitRoute.companyName ?? "Servicio de transporte"}
+                                    {selectedTransitRoute.vehicleType === "taxi"
+                                      ? "Recojo en el punto de partida"
+                                      : selectedTransitRoute.companyName ?? "Servicio de transporte"}
                                   </span>
                                 </div>
-                                <BusFront className="h-12 w-12 shrink-0 text-white/90" aria-hidden="true" />
+                                {selectedTransitRoute.vehicleType === "taxi" ? (
+                                  <CarFront className="h-12 w-12 shrink-0 text-white/90" aria-hidden="true" />
+                                ) : (
+                                  <BusFront className="h-12 w-12 shrink-0 text-white/90" aria-hidden="true" />
+                                )}
                               </div>
                             )}
                             <span
@@ -2519,7 +2539,9 @@ export function HomePlacesClient({
                                 color: selectedTransitRoute.textColor ?? "#fff",
                               }}
                             >
-                              {selectedTransitRoute.vehicleType === "micro"
+                              {selectedTransitRoute.vehicleType === "taxi"
+                                ? "Taxi / aplicativo"
+                                : selectedTransitRoute.vehicleType === "micro"
                                 ? "Microbús"
                                 : selectedTransitRoute.vehicleType === "combi"
                                   ? "Combi"
@@ -2541,29 +2563,37 @@ export function HomePlacesClient({
                           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
                             <div>
                               <h3 className="text-sm font-bold text-adobe-dark">
-                                {selectedTransitRoute.companyName ?? selectedTransitRoute.label}
+                                {selectedTransitRoute.vehicleType === "taxi"
+                                  ? "Servicio de Taxi / Aplicativo"
+                                  : selectedTransitRoute.companyName ?? selectedTransitRoute.label}
                               </h3>
-                              <p className="text-[11px] text-adobe-muted">
-                                Ruta {selectedTransitRoute.routeCode ?? selectedTransitRoute.label.split(":")[0]}
-                              </p>
+                              {selectedTransitRoute.vehicleType !== "taxi" && (
+                                <p className="text-[11px] text-adobe-muted">
+                                  Ruta {selectedTransitRoute.routeCode ?? selectedTransitRoute.label.split(":")[0]}
+                                </p>
+                              )}
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs">
                               <div className="rounded-lg bg-adobe-bg p-2">
-                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Pasaje</span>
+                                <span className="block text-[10px] font-semibold uppercase text-adobe-muted">
+                                  {selectedTransitRoute.vehicleType === "taxi" ? "Tarifa estimada" : "Pasaje"}
+                                </span>
                                 <strong className="mt-0.5 block text-adobe-dark">
-                                  {selectedTransitRoute.farePen != null
+                                  {selectedTransitRoute.vehicleType === "taxi" && selectedTransitRoute.fareRangePen
+                                    ? `S/ ${selectedTransitRoute.fareRangePen[0].toFixed(2)}–${selectedTransitRoute.fareRangePen[1].toFixed(2)} · estimado`
+                                    : selectedTransitRoute.farePen != null
                                     ? `S/ ${selectedTransitRoute.farePen.toFixed(2)}`
                                     : "No disponible"}
                                 </strong>
                               </div>
-                              <div className="rounded-lg bg-adobe-bg p-2">
+                              {selectedTransitRoute.vehicleType !== "taxi" && <div className="rounded-lg bg-adobe-bg p-2">
                                 <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Espera media</span>
                                 <strong className="mt-0.5 block text-adobe-dark">
                                   {selectedTransitRoute.waitMinutes != null
                                     ? `~${selectedTransitRoute.waitMinutes} min`
                                     : "—"}
                                 </strong>
-                              </div>
+                              </div>}
                               <div className="rounded-lg bg-adobe-bg p-2">
                                 <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Tiempo de viaje</span>
                                 <strong className="mt-0.5 block text-adobe-dark">
@@ -2583,7 +2613,9 @@ export function HomePlacesClient({
                             </div>
                             <div className="space-y-2 text-xs">
                               <div className="rounded-lg border border-adobe-border p-2.5">
-                                <span className="block text-[10px] font-bold uppercase text-moche-700">Subes en</span>
+                                <span className="block text-[10px] font-bold uppercase text-moche-700">
+                                  {selectedTransitRoute.vehicleType === "taxi" ? "Punto de recojo" : "Subes en"}
+                                </span>
                                 <strong className="mt-0.5 block text-adobe-dark">
                                   {selectedTransitRoute.boardingStop ?? "Paradero sugerido"}
                                 </strong>
@@ -2594,7 +2626,9 @@ export function HomePlacesClient({
                                 )}
                               </div>
                               <div className="rounded-lg border border-adobe-border p-2.5">
-                                <span className="block text-[10px] font-bold uppercase text-moche-700">Bajas en</span>
+                                <span className="block text-[10px] font-bold uppercase text-moche-700">
+                                  {selectedTransitRoute.vehicleType === "taxi" ? "Destino" : "Bajas en"}
+                                </span>
                                 <strong className="mt-0.5 block text-adobe-dark">
                                   {selectedTransitRoute.dropoffStop ?? "Paradero sugerido"}
                                 </strong>
@@ -2611,7 +2645,7 @@ export function HomePlacesClient({
                     </div>
 
                     <p className="mt-2 px-1 text-[11px] text-adobe-muted">
-                      Los números son destinos; cada marcador de bus indica “Sube” o “Baja” y la letra de su leg.
+                      Los números indican destinos; selecciona una línea o marcador para ver los detalles del tramo.
                     </p>
                   </div>
                 </div>

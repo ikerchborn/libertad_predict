@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useCallback, useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Calendar as CalendarIcon,
@@ -38,7 +38,9 @@ import { haversineKm, optimizeDayRoute } from "@/lib/routeOptimizer";
 import { fetchOsrmRoute } from "@/lib/osrmService";
 import {
   estimateTransitCostMinutes,
+  getTransitAlternatives,
   getTransitBetweenPlaces,
+  resolveTransitBetweenPlaces,
   type TransitOption,
 } from "@/lib/transitService";
 import type { MapRouteSegment } from "@/components/PlaceMap";
@@ -79,6 +81,10 @@ function formatTripDateRange(startDate: string, endDate: string): string {
 
 function getLegId(index: number): string {
   return String.fromCharCode(65 + index);
+}
+
+function getTransitPairKey(origin: Place, destination: Place): string {
+  return `${origin.id}>${destination.id}`;
 }
 
 function formatPlannerDate(date: string): string {
@@ -190,6 +196,12 @@ export function HomePlacesClient({
   );
   const [routeSegments, setRouteSegments] = useState<MapRouteSegment[]>([]);
   const [selectedLegId, setSelectedLegId] = useState<string | null>(null);
+  const [resolvedTransitOptions, setResolvedTransitOptions] = useState<
+    Record<string, TransitOption>
+  >({});
+  const [selectedTransitModes, setSelectedTransitModes] = useState<
+    Record<string, "transit" | "direct-taxi">
+  >({});
   const [urbanFare, setUrbanFare] = useState(2.5);
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
 
@@ -216,6 +228,43 @@ export function HomePlacesClient({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isHydrated || !activeDay) return;
+    let isCurrent = true;
+    const legs = activeDay.places.slice(0, -1).map((origin, index) => {
+      const destination = activeDay.places[index + 1];
+      return { key: getTransitPairKey(origin, destination), origin, destination };
+    });
+
+    Promise.all(
+      legs.map(async ({ key, origin, destination }) => [
+        key,
+        await resolveTransitBetweenPlaces(origin, destination, urbanFare),
+      ] as const)
+    )
+      .then((entries) => {
+        if (isCurrent) setResolvedTransitOptions(Object.fromEntries(entries));
+      })
+      .catch((error: unknown) => {
+        console.error("No se pudieron validar las rutas peatonales del itinerario:", error);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [isHydrated, activeDay, urbanFare]);
+
+  const getSelectedTransit = useCallback((origin: Place, destination: Place): TransitOption => {
+    const key = getTransitPairKey(origin, destination);
+    const transit =
+      resolvedTransitOptions[key] ??
+      getTransitBetweenPlaces(origin, destination, urbanFare);
+    if (selectedTransitModes[key] !== "direct-taxi") return transit;
+    return getTransitAlternatives(origin, destination, transit).find(
+      (alternative) => alternative.id === "direct-taxi"
+    )?.transit ?? transit;
+  }, [resolvedTransitOptions, selectedTransitModes, urbanFare]);
+
   // Recalculate OSRM route whenever active day's places or travel mode change
   useEffect(() => {
     if (!isHydrated || !activeDay) return;
@@ -239,10 +288,15 @@ export function HomePlacesClient({
         label: string;
         tripLabel?: string;
         estimatedMinutes?: number;
+        waitMinutes?: number;
         farePen?: number;
         fareRangePen?: [number, number];
         routeGeometry?: [number, number][];
+        routeGeometryVerified?: boolean;
         routeColor?: string;
+        vehicleType?: MapRouteSegment["vehicleType"];
+        boardingStop?: string;
+        dropoffStop?: string;
         walkPhase?: "to-board" | "transfer" | "to-place";
         isApproximate?: boolean;
       }> = [];
@@ -262,7 +316,7 @@ export function HomePlacesClient({
       for (let i = 0; i < activeDay.places.length - 1; i++) {
         const origin = activeDay.places[i];
         const destination = activeDay.places[i + 1];
-        const transit = getTransitBetweenPlaces(origin, destination, urbanFare);
+        const transit = getSelectedTransit(origin, destination);
         const legId = getLegId(i);
         const routeId = `${activeDay.id}-leg-${legId}`;
         const tripLabel = `Leg ${legId} · ${origin.name} → ${destination.name}`;
@@ -276,7 +330,33 @@ export function HomePlacesClient({
             kind: "walking",
             label: `Camina desde ${origin.name} hasta ${destination.name}`,
             tripLabel,
+            estimatedMinutes: transit.estimatedMinutes,
+            routeGeometry: transit.routeGeometry,
+            routeGeometryVerified: transit.routeGeometryVerified,
             walkPhase: "to-place",
+          });
+          continue;
+        }
+
+        if (transit.vehicleType === "taxi") {
+          segmentInputs.push({
+            routeId,
+            legId,
+            origin: [origin.lat, origin.lon],
+            destination: [destination.lat, destination.lon],
+            mode: "driving",
+            kind: "transit",
+            label: `${transit.serviceName}: ${origin.name} → ${destination.name}`,
+            tripLabel,
+            estimatedMinutes: transit.estimatedMinutes,
+            waitMinutes: 0,
+            farePen: transit.farePen,
+            fareRangePen: transit.fareRangePen,
+            routeColor: transit.routeColor,
+            vehicleType: transit.vehicleType,
+            boardingStop: transit.boardingStop,
+            dropoffStop: transit.dropoffStop,
+            isApproximate: true,
           });
           continue;
         }
@@ -319,11 +399,16 @@ export function HomePlacesClient({
               label: `${leg.serviceName}: ${leg.boardingStop} → ${leg.dropoffStop}`,
               tripLabel,
               estimatedMinutes: leg.estimatedMinutes,
+              waitMinutes: leg.waitMinutes,
               farePen: transit.farePen,
               fareRangePen: transit.fareRangePen,
               routeGeometry: leg.routeGeometry,
+              routeGeometryVerified: leg.routeGeometryVerified,
               routeColor: leg.routeColor,
-              isApproximate: true,
+              vehicleType: leg.vehicleType,
+              boardingStop: leg.boardingStop,
+              dropoffStop: leg.dropoffStop,
+              isApproximate: !leg.routeGeometryVerified || !leg.routeGeometry,
             });
           });
         } else {
@@ -337,11 +422,16 @@ export function HomePlacesClient({
             label: `${transit.serviceName}: ${transit.boardingStop} → ${transit.dropoffStop}`,
             tripLabel,
             estimatedMinutes: transit.estimatedMinutes,
+            waitMinutes: transit.waitMinutes,
             farePen: transit.farePen,
             fareRangePen: transit.fareRangePen,
             routeGeometry: transit.routeGeometry,
+            routeGeometryVerified: transit.routeGeometryVerified,
             routeColor: transit.routeColor,
-            isApproximate: true,
+            vehicleType: transit.vehicleType,
+            boardingStop: transit.boardingStop,
+            dropoffStop: transit.dropoffStop,
+            isApproximate: !transit.routeGeometryVerified || !transit.routeGeometry,
           });
         }
 
@@ -387,9 +477,30 @@ export function HomePlacesClient({
             );
             return {
               ...segment,
+              label:
+                segment.kind === "transit" && !segment.routeGeometryVerified
+                  ? `${segment.label} · trazo no verificado`
+                  : segment.label,
               route: {
                 coordinates: routeGeometry,
                 distanceKm,
+                durationMin: segment.estimatedMinutes ?? 0,
+                isFallback: !segment.routeGeometryVerified,
+              },
+            };
+          }
+          if (segment.kind === "transit") {
+            return {
+              ...segment,
+              label: `${segment.label} · Recorrido referencial entre paraderos`,
+              route: {
+                coordinates: [segment.origin, segment.destination],
+                distanceKm: haversineKm(
+                  segment.origin[0],
+                  segment.origin[1],
+                  segment.destination[0],
+                  segment.destination[1]
+                ),
                 durationMin: segment.estimatedMinutes ?? 0,
                 isFallback: true,
               },
@@ -417,9 +528,11 @@ export function HomePlacesClient({
               );
             const estimatedMinutes =
               segment.kind === "transit"
-                ? segment.estimatedMinutes ?? segment.route?.durationMin ?? 0
+                ? (segment.estimatedMinutes ?? segment.route?.durationMin ?? 0) +
+                  (segment.waitMinutes ?? 0)
                 : segment.kind === "walking"
-                  ? Math.max(1, Math.round((distanceKm / 4.5) * 60))
+                  ? segment.estimatedMinutes ??
+                    Math.max(1, Math.round((distanceKm / 4.5) * 60))
                   : segment.route?.durationMin ?? 0;
             return {
               km: total.km + distanceKm,
@@ -441,14 +554,20 @@ export function HomePlacesClient({
               tripLabel: segment.tripLabel,
               estimatedMinutes:
                 segment.kind === "walking"
-                  ? Math.max(
+                  ? segment.estimatedMinutes ??
+                    Math.max(
                       1,
                       Math.round(((segment.route?.distanceKm ?? 0) / 4.5) * 60)
                     )
                   : segment.estimatedMinutes,
+              waitMinutes: segment.waitMinutes,
               farePen: segment.farePen,
               fareRangePen: segment.fareRangePen,
               routeColor: segment.routeColor,
+              vehicleType: segment.vehicleType,
+              boardingStop: segment.boardingStop,
+              dropoffStop: segment.dropoffStop,
+              routeGeometryVerified: segment.routeGeometryVerified,
               walkPhase: segment.walkPhase,
               isApproximate: segment.isApproximate ?? segment.route?.isFallback ?? false,
             }))
@@ -465,6 +584,9 @@ export function HomePlacesClient({
     isHydrated,
     activeDay?.id,
     activeDay?.places,
+    resolvedTransitOptions,
+    selectedTransitModes,
+    getSelectedTransit,
     trip.travelMode,
     trip.hotelAnchor?.id,
     urbanFare,
@@ -474,13 +596,47 @@ export function HomePlacesClient({
   const handleOptimize = async () => {
     if (!activeDay || activeDay.places.length <= 1) return;
     setIsCalculating(true);
-    const optimized = optimizeDayRoute(
-      activeDay.places,
-      trip.hotelAnchor,
-      (from, to) => estimateTransitCostMinutes(from, to, urbanFare)
-    );
-    setDayPlaces(activeDay.id, optimized);
-    setIsCalculating(false);
+    try {
+      const candidates = trip.hotelAnchor
+        ? [...activeDay.places, trip.hotelAnchor]
+        : activeDay.places;
+      const pairs = candidates.flatMap((origin, originIndex) =>
+        candidates.flatMap((destination, destinationIndex) =>
+          originIndex === destinationIndex
+            ? []
+            : [{ origin, destination, key: getTransitPairKey(origin, destination) }]
+        )
+      );
+      const transitByPair = new Map<string, TransitOption>();
+      for (let index = 0; index < pairs.length; index += 4) {
+        const batch = pairs.slice(index, index + 4);
+        const resolved = await Promise.all(
+          batch.map(async ({ origin, destination, key }) => ({
+            key,
+            transit: await resolveTransitBetweenPlaces(origin, destination, urbanFare),
+          }))
+        );
+        resolved.forEach(({ key, transit }) => transitByPair.set(key, transit));
+      }
+
+      const optimized = optimizeDayRoute(
+        activeDay.places,
+        trip.hotelAnchor,
+        (from, to) =>
+          estimateTransitCostMinutes(
+            from,
+            to,
+            urbanFare,
+            15,
+            transitByPair.get(getTransitPairKey(from, to))
+          )
+      );
+      setDayPlaces(activeDay.id, optimized);
+    } catch (error) {
+      console.error("No se pudo optimizar la ruta multimodal:", error);
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   // Derive zone for filtering
@@ -551,11 +707,11 @@ export function HomePlacesClient({
       steps.push({
         from,
         to,
-        transit: getTransitBetweenPlaces(from, to, urbanFare),
+        transit: getSelectedTransit(from, to),
       });
     }
     return steps;
-  }, [activeDay, urbanFare]);
+  }, [activeDay, getSelectedTransit]);
 
   const handleMapLegSelect = (legId: string) => {
     setSelectedLegId(legId);
@@ -1523,7 +1679,7 @@ export function HomePlacesClient({
                 </div>
                 {routeStats && routeStats.min >= 90 && (
                   <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-950">
-                    <b>Tiempo total referencial:</b> combina caminatas y transporte estimado; no incluye esperas. Confirma los servicios y horarios antes de viajar.
+                    <b>Tiempo total referencial:</b> combina caminatas, transporte y esperas medias estimadas. Confirma servicios, frecuencias y horarios antes de viajar.
                   </div>
                 )}
                 {longDistanceSteps.length > 0 && (
@@ -1567,9 +1723,20 @@ export function HomePlacesClient({
                     <div className="space-y-2">
                       {activeDay?.places.map((place, idx) => {
                         const nextPlace = activeDay.places[idx + 1];
-                        const transit = nextPlace
-                          ? getTransitBetweenPlaces(place, nextPlace, urbanFare)
+                        const pairKey = nextPlace
+                          ? getTransitPairKey(place, nextPlace)
+                          : "";
+                        const baseTransit = nextPlace
+                          ? resolvedTransitOptions[pairKey] ??
+                            getTransitBetweenPlaces(place, nextPlace, urbanFare)
                           : null;
+                        const transit = nextPlace
+                          ? getSelectedTransit(place, nextPlace)
+                          : null;
+                        const alternatives =
+                          nextPlace && baseTransit
+                            ? getTransitAlternatives(place, nextPlace, baseTransit)
+                            : [];
                         const legId = getLegId(idx);
                         const transitModeLabel = transit
                           ? {
@@ -1780,6 +1947,9 @@ export function HomePlacesClient({
                                                   <p>
                                                     <b>Baja:</b> en {routeLeg.dropoffStop} tras ~{routeLeg.estimatedMinutes} min.
                                                   </p>
+                                                  <p>
+                                                    <b>Espera media:</b> ~{routeLeg.waitMinutes} min antes de abordar; puede variar por frecuencia y horario.
+                                                  </p>
                                                   {nextRouteLeg && (
                                                     <p>
                                                       <b>Conexión a pie:</b>{" "}
@@ -1806,6 +1976,11 @@ export function HomePlacesClient({
                                                   ? `punto referencial junto a ${nextPlace?.name ?? "tu destino"}; confirma con el cobrador.`
                                                   : `en ${transit.dropoffStop} tras ~${transit.estimatedMinutes} min de bus.`}
                                               </p>
+                                              {transit.waitMinutes > 0 && (
+                                                <p>
+                                                  <b>Espera media estimada:</b> ~{transit.waitMinutes} min antes de abordar; puede variar según la frecuencia.
+                                                </p>
+                                              )}
                                             </>
                                           )}
                                           {alightingWalkKm >= 0.05 && <p>
@@ -1821,6 +1996,48 @@ export function HomePlacesClient({
                                       <p className="mt-1 rounded-lg bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-900">
                                         ⚠️ Requiere {transit.routeLegs.length - 1} transbordo{transit.routeLegs.length > 2 ? "s" : ""}. Cambia de unidad en cada paradero indicado.
                                       </p>
+                                    )}
+                                    {transit.warning && (
+                                      <p className="mt-1 rounded-lg border border-orange-300 bg-orange-100 px-2 py-1 text-[10px] font-semibold text-orange-950">
+                                        {transit.warning}
+                                      </p>
+                                    )}
+                                    {alternatives.length > 1 && (
+                                      <div
+                                        className="mt-2 flex flex-wrap gap-1.5"
+                                        role="group"
+                                        aria-label={`Alternativas para ir de ${place.name} a ${nextPlace?.name}`}
+                                      >
+                                        {alternatives.map((alternative) => {
+                                          const isSelected =
+                                            (selectedTransitModes[pairKey] ?? "transit") ===
+                                            alternative.id;
+                                          const totalMinutes =
+                                            alternative.transit.estimatedMinutes +
+                                            alternative.transit.waitMinutes;
+                                          return (
+                                            <button
+                                              key={alternative.id}
+                                              type="button"
+                                              aria-pressed={isSelected}
+                                              onClick={() =>
+                                                setSelectedTransitModes((current) => ({
+                                                  ...current,
+                                                  [pairKey]: alternative.id,
+                                                }))
+                                              }
+                                              className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold transition ${
+                                                isSelected
+                                                  ? "border-amber-900 bg-amber-900 text-white"
+                                                  : "border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                              }`}
+                                            >
+                                              {alternative.label} · ~{totalMinutes} min · S/{" "}
+                                              {alternative.transit.farePen.toFixed(2)}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
                                     )}
                                     <button
                                       type="button"
@@ -1851,7 +2068,11 @@ export function HomePlacesClient({
                                   <span className="text-[11px] font-bold text-neutral-700">
                                     {transit.vehicleType === "caminata"
                                       ? walkMeasure("to-place", [place.lat, place.lon], [nextPlace?.lat ?? place.lat, nextPlace?.lon ?? place.lon])
-                                      : `${transitModeLabel} ~${transit.estimatedMinutes} min`}
+                                      : `${transitModeLabel} ~${transit.estimatedMinutes + transit.waitMinutes} min${
+                                          transit.waitMinutes
+                                            ? ` (incluye ~${transit.waitMinutes} min de espera)`
+                                            : ""
+                                        }`}
                                   </span>
                                 </div>
                               </article>

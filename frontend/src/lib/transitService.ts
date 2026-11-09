@@ -1,5 +1,6 @@
 import type { Place } from '@/lib/types';
 import { haversineKm } from '@/lib/routeOptimizer';
+import { fetchOsrmRoute, type OsrmRouteResult } from '@/lib/osrmService';
 import transportCatalogJson from '@/data/transport_outside_trujillo.json';
 
 type CatalogVehicleType = 'bus' | 'combi' | 'colectivo' | 'mototaxi';
@@ -17,17 +18,30 @@ interface CatalogRoute {
   code: string;
   serviceName: string;
   vehicleType: CatalogVehicleType;
+  category?: string;
   farePen: number;
   fareRangePen: [number, number];
   estimatedMinutes: number;
   distanceKm: number;
   boardingStopId: string;
   dropoffStopId: string;
+  geometry_ida?: {
+    geometry?: {
+      coordinates?: [number, number][];
+    };
+  };
+  geometry_vuelta?: {
+    geometry?: {
+      coordinates?: [number, number][];
+    };
+  };
   routeGeometry?: {
     geometry?: {
       coordinates?: [number, number][];
     };
   };
+  geometryVerified?: boolean;
+  headwayMinutes?: number;
   confidence: CatalogConfidence;
   source: string;
 }
@@ -56,6 +70,7 @@ export interface TransitOption {
   vehicleType: 'micro' | 'combi' | 'bus' | 'colectivo' | 'mototaxi' | 'caminata' | 'taxi';
   farePen: number;
   estimatedMinutes: number;
+  waitMinutes: number;
   boardingStop: string;
   dropoffStop: string;
   boardingPoint: [number, number];
@@ -65,6 +80,9 @@ export interface TransitOption {
   confidence?: CatalogConfidence;
   source?: string;
   routeGeometry?: [number, number][];
+  routeGeometryVerified?: boolean;
+  routeDistanceKm?: number;
+  warning?: string;
   routeColor?: string;
   routeLegs?: Array<{
     code: string;
@@ -72,11 +90,13 @@ export interface TransitOption {
     vehicleType: 'bus' | 'colectivo' | 'mototaxi';
     farePen: number;
     estimatedMinutes: number;
+    waitMinutes: number;
     boardingStop: string;
     dropoffStop: string;
     boardingPoint: [number, number];
     dropoffPoint: [number, number];
     routeGeometry?: [number, number][];
+    routeGeometryVerified?: boolean;
     routeColor: string;
   }>;
 }
@@ -106,17 +126,44 @@ const ROUTE_COLORS = [
   '#BE123C',
   '#A16207',
 ];
+const walkingRouteCache = new Map<string, Promise<OsrmRouteResult | null>>();
 
 function getRouteColor(code: string): string {
   const hash = [...code].reduce((value, character) => value + character.charCodeAt(0), 0);
   return ROUTE_COLORS[hash % ROUTE_COLORS.length];
 }
 
-function getRouteGeometry(route: CatalogRoute, reverse: boolean): [number, number][] | undefined {
-  const coordinates = route.routeGeometry?.geometry?.coordinates;
+function getWalkingRoute(
+  origin: [number, number],
+  destination: [number, number]
+): Promise<OsrmRouteResult | null> {
+  const key = `${origin.join(',')}>${destination.join(',')}`;
+  const cached = walkingRouteCache.get(key);
+  if (cached) return cached;
+
+  const route = fetchOsrmRoute([origin, destination], 'walking');
+  walkingRouteCache.set(key, route);
+  void route.then(
+    (result) => {
+      if (!result || result.isFallback) walkingRouteCache.delete(key);
+    },
+    () => {
+      walkingRouteCache.delete(key);
+    }
+  );
+  return route;
+}
+
+function getRouteGeometry(
+  route: CatalogRoute,
+  reverse: boolean
+): [number, number][] | undefined {
+  const coordinates = reverse
+    ? route.geometry_vuelta?.geometry?.coordinates
+    : route.geometry_ida?.geometry?.coordinates ??
+      route.routeGeometry?.geometry?.coordinates;
   if (!coordinates || coordinates.length < 2) return undefined;
-  const leafletCoordinates = coordinates.map(([lon, lat]) => [lat, lon] as [number, number]);
-  return reverse ? leafletCoordinates.reverse() : leafletCoordinates;
+  return coordinates.map(([lon, lat]) => [lat, lon] as [number, number]);
 }
 
 function getZone(place: Place): string {
@@ -149,6 +196,7 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
   if (!boarding || !dropoff) {
     throw new Error(`El catálogo de transporte no tiene paraderos para ${route.id}`);
   }
+  const routeGeometry = getRouteGeometry(route, reverse);
 
   return {
     code: route.code,
@@ -157,6 +205,9 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     farePen: route.farePen,
     fareRangePen: route.fareRangePen,
     estimatedMinutes: route.estimatedMinutes,
+    waitMinutes:
+      route.headwayMinutes ??
+      (route.category === 'urbano' ? 6 : route.category === 'local' ? 8 : 15),
     boardingStop: boarding.name,
     dropoffStop: dropoff.name,
     boardingPoint: [boarding.latitude, boarding.longitude],
@@ -164,7 +215,8 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     instructions: `Ruta ${reverse ? 'de retorno' : 'de salida'} desde ${boarding.name}. Tarifa referencial; confirmar en el terminal.`,
     confidence: route.confidence,
     source: route.source,
-    routeGeometry: getRouteGeometry(route, reverse),
+    routeGeometry,
+    routeGeometryVerified: route.geometryVerified === true && Boolean(routeGeometry),
     routeColor: getRouteColor(route.code),
   };
 }
@@ -217,6 +269,10 @@ function getCatalogRoute(
         legs.reduce((total, leg) => total + leg.fareRangePen[1], 0),
       ],
       estimatedMinutes: legPlan.totalEstimatedMinutes,
+      waitMinutes: routeLegOptions.reduce(
+        (total, leg) => total + leg.waitMinutes,
+        0
+      ),
       boardingStop: reverse ? last.dropoffStop : first.boardingStop,
       dropoffStop: reverse ? first.boardingStop : last.dropoffStop,
       boardingPoint: reverse ? last.dropoffPoint : first.boardingPoint,
@@ -230,11 +286,13 @@ function getCatalogRoute(
         vehicleType: leg.vehicleType as 'bus' | 'colectivo' | 'mototaxi',
         farePen: leg.farePen,
         estimatedMinutes: leg.estimatedMinutes,
+        waitMinutes: leg.waitMinutes,
         boardingStop: leg.boardingStop,
         dropoffStop: leg.dropoffStop,
         boardingPoint: leg.boardingPoint,
         dropoffPoint: leg.dropoffPoint,
         routeGeometry: leg.routeGeometry,
+        routeGeometryVerified: leg.routeGeometryVerified,
         routeColor: leg.routeColor ?? getRouteColor(leg.code),
       })),
     };
@@ -292,13 +350,14 @@ export function getTransitBetweenPlaces(
   const fromZone = getZone(origin);
   const toZone = getZone(destination);
 
-  if (dist <= 0.8) {
+  if (dist <= 0.3) {
     return {
       code: 'WALK',
       serviceName: 'Caminata Peatonal',
       vehicleType: 'caminata',
       farePen: 0,
       estimatedMinutes: Math.max(5, Math.round((dist / 4.5) * 60)),
+      waitMinutes: 0,
       boardingStop: origin.name,
       dropoffStop: destination.name,
       boardingPoint: [origin.lat, origin.lon],
@@ -324,6 +383,7 @@ export function getTransitBetweenPlaces(
       farePen: 5.0,
       fareRangePen: [4.0, 7.0],
       estimatedMinutes: 5,
+      waitMinutes: 0,
       boardingStop: `Frontis de ${origin.name}`,
       dropoffStop: `Puerta de ingreso a ${destination.name}`,
       boardingPoint: [origin.lat, origin.lon],
@@ -344,6 +404,7 @@ export function getTransitBetweenPlaces(
       vehicleType: 'micro',
       farePen: urbanFare,
       estimatedMinutes: 30,
+      waitMinutes: 6,
       boardingStop: fromZone === 'centro' ? 'Av. Mansiche / Óvalo Mansiche' : 'Av. Víctor Larco / Malecón Huanchaco',
       dropoffStop: toZone === 'huanchaco' ? 'Playa Huanchaco / Malecón' : 'Av. España / Centro Histórico',
       boardingPoint: fromZone === 'centro' ? TRANSIT_STOPS.mansiche : TRANSIT_STOPS.huanchaco,
@@ -362,6 +423,7 @@ export function getTransitBetweenPlaces(
       vehicleType: 'micro',
       farePen: urbanFare,
       estimatedMinutes: 20,
+      waitMinutes: 6,
       boardingStop: fromZone === 'centro' ? 'Av. Mansiche / Óvalo Papal' : 'Carretera a Huanchaco (Frontis Chan Chan)',
       dropoffStop: toZone === 'chan_chan' ? 'Ingreso a Chan Chan (Museo de Sitio)' : 'Av. Mansiche / Centro',
       boardingPoint: fromZone === 'centro' ? TRANSIT_STOPS.mansiche : TRANSIT_STOPS.museoChanChan,
@@ -379,6 +441,7 @@ export function getTransitBetweenPlaces(
       vehicleType: 'combi',
       farePen: urbanFare,
       estimatedMinutes: 12,
+      waitMinutes: 6,
       boardingStop: 'Carretera Huanchaco',
       dropoffStop: 'Balneario de Huanchaco',
       boardingPoint: fromZone === 'chan_chan' ? TRANSIT_STOPS.chanChan : TRANSIT_STOPS.huanchaco,
@@ -396,6 +459,7 @@ export function getTransitBetweenPlaces(
       vehicleType: 'combi',
       farePen: urbanFare,
       estimatedMinutes: 25,
+      waitMinutes: 6,
       boardingStop: fromZone === 'centro' ? 'Óvalo Grau / Av. América Sur' : 'Frontis Huacas de Moche',
       dropoffStop: toZone === 'moche' ? 'Museo Huacas de Moche / Huaca de la Luna' : 'Óvalo Grau / Centro',
       boardingPoint: fromZone === 'centro' ? TRANSIT_STOPS.grau : TRANSIT_STOPS.moche,
@@ -413,6 +477,7 @@ export function getTransitBetweenPlaces(
       vehicleType: 'bus',
       farePen: CHICAMA_FARE,
       estimatedMinutes: 80,
+      waitMinutes: 15,
       boardingStop: 'Terminal Santa Cruz / Óvalo El Chira (Trujillo)',
       dropoffStop: 'Plaza de Armas de Puerto Malabrigo',
       boardingPoint: fromZone === 'chicama' ? TRANSIT_STOPS.chicama : TRANSIT_STOPS.santaCruz,
@@ -430,6 +495,7 @@ export function getTransitBetweenPlaces(
       vehicleType: 'bus',
       farePen: EL_BRUJO_FARE,
       estimatedMinutes: 65,
+      waitMinutes: 15,
       boardingStop: 'Terminal Santa Cruz (Trujillo) o Paradero Chocope',
       dropoffStop: 'Complejo Arqueológico El Brujo / Museo Cao',
       boardingPoint: fromZone === 'el_brujo' ? TRANSIT_STOPS.brujo : TRANSIT_STOPS.santaCruz,
@@ -447,6 +513,7 @@ export function getTransitBetweenPlaces(
       vehicleType: 'bus',
       farePen: HUAMACHUCO_FARE,
       estimatedMinutes: 240,
+      waitMinutes: 15,
       boardingStop: 'Terminal Terrestre El Chira / Prol. Vallejo',
       dropoffStop: 'Terminal Terrestre de Huamachuco (3,200 msnm)',
       boardingPoint: fromZone === 'huamachuco' ? TRANSIT_STOPS.huamachuco : TRANSIT_STOPS.santaCruz,
@@ -466,6 +533,7 @@ export function getTransitBetweenPlaces(
     farePen: taxi.fareAvg,
     fareRangePen: [taxi.fareMin, taxi.fareMax],
     estimatedMinutes: taxi.estimatedMinutes,
+    waitMinutes: 0,
     boardingStop: `Punto de partida (${origin.name})`,
     dropoffStop: `Destino directo (${destination.name})`,
     boardingPoint: [origin.lat, origin.lon],
@@ -476,13 +544,104 @@ export function getTransitBetweenPlaces(
   };
 }
 
+export async function resolveTransitBetweenPlaces(
+  origin: Place,
+  destination: Place,
+  urbanFare = 2.5
+): Promise<TransitOption> {
+  const directDistanceKm = haversineKm(
+    origin.lat,
+    origin.lon,
+    destination.lat,
+    destination.lon
+  );
+  if (directDistanceKm < 0.3 || directDistanceKm > 0.8) {
+    return getTransitBetweenPlaces(origin, destination, urbanFare);
+  }
+
+  const walkingRoute = await getWalkingRoute(
+    [origin.lat, origin.lon],
+    [destination.lat, destination.lon]
+  );
+  if (
+    walkingRoute &&
+    !walkingRoute.isFallback &&
+    walkingRoute.distanceKm <= 0.9 &&
+    walkingRoute.durationMin <= 12
+  ) {
+    return {
+      code: 'WALK',
+      serviceName: 'Caminata Peatonal',
+      vehicleType: 'caminata',
+      farePen: 0,
+      estimatedMinutes: Math.max(1, walkingRoute.durationMin),
+      waitMinutes: 0,
+      boardingStop: origin.name,
+      dropoffStop: destination.name,
+      boardingPoint: [origin.lat, origin.lon],
+      dropoffPoint: [destination.lat, destination.lon],
+      routeGeometry: walkingRoute.coordinates,
+      routeDistanceKm: walkingRoute.distanceKm,
+      routeGeometryVerified: true,
+      instructions: `Ruta peatonal por calles: ${walkingRoute.distanceKm.toFixed(1)} km, aproximadamente ${walkingRoute.durationMin} min.`,
+    };
+  }
+
+  const transit = getTransitBetweenPlaces(origin, destination, urbanFare);
+  const reason = !walkingRoute || walkingRoute.isFallback
+    ? 'No se pudo confirmar una ruta peatonal por calles;'
+    : `La ruta peatonal mide ${walkingRoute.distanceKm.toFixed(1)} km y toma unos ${walkingRoute.durationMin} min;`;
+  return {
+    ...transit,
+    warning: `${reason} considera transporte o confirma el cruce peatonal antes de salir.`,
+  };
+}
+
+export function getTransitAlternatives(
+  origin: Place,
+  destination: Place,
+  transit: TransitOption
+): Array<{ id: 'transit' | 'direct-taxi'; label: string; transit: TransitOption }> {
+  if (!transit.routeLegs || transit.routeLegs.length < 2) {
+    return [{ id: 'transit', label: 'Ruta disponible', transit }];
+  }
+
+  const taxi = calculateTaxiEstimate(
+    haversineKm(origin.lat, origin.lon, destination.lat, destination.lon)
+  );
+  const directTaxi: TransitOption = {
+    code: 'TAXI-DIRECTO',
+    serviceName: 'Taxi directo / aplicativo',
+    vehicleType: 'taxi',
+    farePen: taxi.fareAvg,
+    fareRangePen: [taxi.fareMin, taxi.fareMax],
+    estimatedMinutes: taxi.estimatedMinutes,
+    waitMinutes: 0,
+    boardingStop: `Punto de partida (${origin.name})`,
+    dropoffStop: `Destino (${destination.name})`,
+    boardingPoint: [origin.lat, origin.lon],
+    dropoffPoint: [destination.lat, destination.lon],
+    routeColor: getRouteColor('TAXI-DIRECTO'),
+    instructions: 'Opción directa en taxi estimada por distancia; no representa una ruta vial ni una tarifa confirmada.',
+    confidence: 'baja',
+    source: 'Estimación referencial por distancia en línea directa',
+    warning: 'Tiempo y tarifa de taxi son referenciales; pueden variar por tráfico y negociación.',
+  };
+
+  return [
+    { id: 'transit', label: 'Transporte público · con transbordos', transit },
+    { id: 'direct-taxi', label: 'Directo · taxi estimado', transit: directTaxi },
+  ];
+}
+
 export function estimateTransitCostMinutes(
   origin: Place,
   destination: Place,
   urbanFare = 2.5,
-  transferPenaltyMinutes = 15
+  transferPenaltyMinutes = 15,
+  resolvedTransit?: TransitOption
 ): number {
-  const transit = getTransitBetweenPlaces(origin, destination, urbanFare);
+  const transit = resolvedTransit ?? getTransitBetweenPlaces(origin, destination, urbanFare);
   if (transit.vehicleType === 'caminata') return transit.estimatedMinutes;
 
   const accessWalkKm = haversineKm(
@@ -510,5 +669,11 @@ export function estimateTransitCostMinutes(
   const walkingMinutes = ((accessWalkKm + egressWalkKm + transferWalkKm) / 4.5) * 60;
   const transfers = Math.max(0, routeLegs.length - 1);
 
-  return walkingMinutes + transit.estimatedMinutes + transfers * transferPenaltyMinutes;
+  const waitingMinutes = transit.routeLegs?.length
+    ? transit.routeLegs.reduce((total, leg) => total + leg.waitMinutes, 0)
+    : transit.waitMinutes;
+  return walkingMinutes +
+    transit.estimatedMinutes +
+    waitingMinutes +
+    transfers * transferPenaltyMinutes;
 }

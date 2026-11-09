@@ -386,7 +386,7 @@
       "distanceKm": 72.0,
       "boardingStopId": "terminal-santa-cruz",
       "dropoffStopId": "terminal-puerto-chicama",
-      "routeGeometry": {
+      "geometry_ida": {
         "type": "Feature",
         "geometry": {
           "type": "LineString",
@@ -444,7 +444,7 @@
       "distanceKm": 33.0,
       "boardingStopId": "terminal-santa-cruz",
       "dropoffStopId": "chocope-terminal",
-      "routeGeometry": {
+      "geometry_ida": {
         "type": "Feature",
         "geometry": {
           "type": "LineString",
@@ -494,7 +494,7 @@
       "distanceKm": 15.0,
       "boardingStopId": "chocope-terminal",
       "dropoffStopId": "magdalena-de-cao-plaza",
-      "routeGeometry": {
+      "geometry_ida": {
         "type": "Feature",
         "geometry": {
           "type": "LineString",
@@ -540,7 +540,7 @@
       "distanceKm": 7.0,
       "boardingStopId": "magdalena-de-cao-plaza",
       "dropoffStopId": "el-brujo-complejo",
-      "routeGeometry": {
+      "geometry_ida": {
         "type": "Feature",
         "geometry": {
           "type": "LineString",
@@ -586,7 +586,7 @@
       "distanceKm": 180.0,
       "boardingStopId": "terrapuerto-trujillo",
       "dropoffStopId": "huamachuco-agencia",
-      "routeGeometry": {
+      "geometry_ida": {
         "type": "Feature",
         "geometry": {
           "type": "LineString",
@@ -640,7 +640,7 @@
       "distanceKm": 110.0,
       "boardingStopId": "terminal-santa-cruz",
       "dropoffStopId": "pacasmayo-terminal",
-      "routeGeometry": {
+      "geometry_ida": {
         "type": "Feature",
         "geometry": {
           "type": "LineString",
@@ -698,7 +698,7 @@
       "distanceKm": 15.0,
       "boardingStopId": "terminal-santa-cruz",
       "dropoffStopId": "salaverry-plaza",
-      "routeGeometry": {
+      "geometry_ida": {
         "type": "Feature",
         "geometry": {
           "type": "LineString",
@@ -744,7 +744,7 @@
       "distanceKm": 12.0,
       "boardingStopId": "terminal-santa-cruz",
       "dropoffStopId": "huanchaco-plaza",
-      "routeGeometry": {
+      "geometry_ida": {
         "type": "Feature",
         "geometry": {
           "type": "LineString",

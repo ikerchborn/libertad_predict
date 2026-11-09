@@ -8,6 +8,8 @@ import { fetchOsrmRoute, type OsrmRouteResult } from '@/lib/osrmService';
 import {
   estimateTransitCostMinutes,
   getTransitBetweenPlaces,
+  resolveTransitBetweenPlaces,
+  type TransitOption,
 } from '@/lib/transitService';
 import { getTransportImage } from '@/lib/transportImages';
 import {
@@ -66,6 +68,9 @@ export default function TripPlanner({
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddingOpen, setIsAddingOpen] = useState(false);
   const [urbanFare, setUrbanFare] = useState(2.5);
+  const [resolvedTransitOptions, setResolvedTransitOptions] = useState<
+    Record<string, TransitOption>
+  >({});
   const [newDayDate, setNewDayDate] = useState('');
   const selectedNewDayDate = additionalDayDates.includes(newDayDate)
     ? newDayDate
@@ -90,6 +95,36 @@ export default function TripPlanner({
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isHydrated || !activeDay) return;
+    let isCurrent = true;
+    const legs = activeDay.places.slice(0, -1).map((origin, index) => {
+      const destination = activeDay.places[index + 1];
+      return {
+        key: `${origin.id}>${destination.id}`,
+        origin,
+        destination,
+      };
+    });
+
+    Promise.all(
+      legs.map(async ({ key, origin, destination }) => [
+        key,
+        await resolveTransitBetweenPlaces(origin, destination, urbanFare),
+      ] as const)
+    )
+      .then((entries) => {
+        if (isCurrent) setResolvedTransitOptions(Object.fromEntries(entries));
+      })
+      .catch((error: unknown) => {
+        console.error('No se pudieron validar las rutas peatonales del itinerario:', error);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [activeDay, isHydrated, urbanFare]);
 
   // Compute / recalculate route when day's places or mode changes
   const updateRouteGeometry = async (placesToRoute: Place[]) => {
@@ -126,15 +161,48 @@ export default function TripPlanner({
   const handleOptimize = async () => {
     if (!activeDay || activeDay.places.length <= 1) return;
     setIsCalculating(true);
+    try {
+      const candidates = trip.hotelAnchor
+        ? [...activeDay.places, trip.hotelAnchor]
+        : activeDay.places;
+      const pairs = candidates.flatMap((origin, originIndex) =>
+        candidates.flatMap((destination, destinationIndex) =>
+          originIndex === destinationIndex
+            ? []
+            : [{ origin, destination, key: `${origin.id}>${destination.id}` }]
+        )
+      );
+      const transitByPair = new Map<string, Awaited<ReturnType<typeof resolveTransitBetweenPlaces>>>();
+      for (let index = 0; index < pairs.length; index += 4) {
+        const batch = pairs.slice(index, index + 4);
+        const resolved = await Promise.all(
+          batch.map(async ({ origin, destination, key }) => ({
+            key,
+            transit: await resolveTransitBetweenPlaces(origin, destination, urbanFare),
+          }))
+        );
+        resolved.forEach(({ key, transit }) => transitByPair.set(key, transit));
+      }
 
-    const optimized = optimizeDayRoute(
-      activeDay.places,
-      trip.hotelAnchor,
-      (from, to) => estimateTransitCostMinutes(from, to, urbanFare)
-    );
-    setDayPlaces(activeDay.id, optimized);
-    await updateRouteGeometry(optimized);
-    setIsCalculating(false);
+      const optimized = optimizeDayRoute(
+        activeDay.places,
+        trip.hotelAnchor,
+        (from, to) =>
+          estimateTransitCostMinutes(
+            from,
+            to,
+            urbanFare,
+            15,
+            transitByPair.get(`${from.id}>${to.id}`)
+          )
+      );
+      setDayPlaces(activeDay.id, optimized);
+      await updateRouteGeometry(optimized);
+    } catch (error) {
+      console.error('No se pudo optimizar la ruta multimodal:', error);
+    } finally {
+      setIsCalculating(false);
+    }
   };
 
   // Recalculate route on active day change
@@ -369,7 +437,8 @@ export default function TripPlanner({
             {activeDay?.places.map((place, idx) => {
               const nextPlace = activeDay.places[idx + 1];
               const transit = nextPlace
-                ? getTransitBetweenPlaces(place, nextPlace, urbanFare)
+                ? resolvedTransitOptions[`${place.id}>${nextPlace.id}`] ??
+                  getTransitBetweenPlaces(place, nextPlace, urbanFare)
                 : null;
 
               return (
@@ -472,6 +541,11 @@ export default function TripPlanner({
                               {transit.routeLegs.length} tramos · confianza {transit.confidence ?? 'referencial'}
                             </div>
                           )}
+                          {transit.warning && (
+                            <div className="text-[10px] font-semibold text-orange-800 mt-0.5">
+                              {transit.warning}
+                            </div>
+                          )}
                           <div className="text-[10px] text-amber-700/80 flex items-center gap-1.5 mt-0.5">
                             <span className="truncate">Subida: <b>{transit.boardingStop}</b></span>
                             <span>&bull;</span>
@@ -485,7 +559,10 @@ export default function TripPlanner({
                           {transit.farePen === 0 ? 'Gratis' : `S/ ${transit.farePen.toFixed(2)}`}
                         </span>
                         <span className="text-[10px] font-semibold text-neutral-600">
-                          ~{transit.estimatedMinutes} min
+                          ~{transit.estimatedMinutes + transit.waitMinutes} min
+                          {transit.waitMinutes > 0
+                            ? ` (incluye ~${transit.waitMinutes} min de espera)`
+                            : ''}
                         </span>
                       </div>
                     </div>
@@ -508,7 +585,7 @@ export default function TripPlanner({
             <span className="text-adobe-border">•</span>
             <div className="flex items-center gap-1 text-adobe-muted">
               <Clock className="w-3.5 h-3.5" />
-              <span>~{routeStats.min} min en transporte vehicular</span>
+              <span>~{routeStats.min} min en auto por carretera (referencial, no es tiempo de bus)</span>
             </div>
           </div>
         ) : (

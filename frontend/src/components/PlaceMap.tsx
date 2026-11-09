@@ -12,11 +12,16 @@ export interface MapRouteSegment {
   label: string;
   distanceKm?: number;
   routeColor?: string;
+  vehicleType?: 'micro' | 'combi' | 'bus' | 'colectivo' | 'mototaxi' | 'taxi';
   legId?: string;
   tripLabel?: string;
   estimatedMinutes?: number;
+  waitMinutes?: number;
   farePen?: number;
   fareRangePen?: [number, number];
+  boardingStop?: string;
+  dropoffStop?: string;
+  routeGeometryVerified?: boolean;
   walkPhase?: 'to-board' | 'transfer' | 'to-place';
   isApproximate?: boolean;
 }
@@ -76,9 +81,12 @@ export default function PlaceMap({
       legId?: string;
       tripLabel?: string;
       estimatedMinutes?: number;
+      waitMinutes?: number;
       farePen?: number;
       fareRangePen?: [number, number];
       routeColor?: string;
+      vehicleType?: MapRouteSegment['vehicleType'];
+      routeGeometryVerified?: boolean;
     }>
   >((routes, segment, index) => {
     const key = segment.routeId ?? segment.routeColor ?? `segment-${index}`;
@@ -93,9 +101,20 @@ export default function PlaceMap({
         existing.isTransit = true;
         existing.legId = segment.legId;
         existing.estimatedMinutes = segment.estimatedMinutes;
+        existing.waitMinutes = segment.waitMinutes;
         existing.farePen = segment.farePen;
         existing.fareRangePen = segment.fareRangePen;
         existing.routeColor = segment.routeColor;
+        existing.vehicleType = segment.vehicleType;
+        existing.routeGeometryVerified = segment.routeGeometryVerified;
+      } else if (segment.kind === 'transit') {
+        existing.estimatedMinutes =
+          (existing.estimatedMinutes ?? 0) + (segment.estimatedMinutes ?? 0);
+        existing.waitMinutes =
+          (existing.waitMinutes ?? 0) + (segment.waitMinutes ?? 0);
+        existing.routeGeometryVerified =
+          existing.routeGeometryVerified === true &&
+          segment.routeGeometryVerified === true;
       }
       return routes;
     }
@@ -106,9 +125,12 @@ export default function PlaceMap({
       legId: segment.legId,
       tripLabel: segment.tripLabel,
       estimatedMinutes: segment.estimatedMinutes,
+      waitMinutes: segment.waitMinutes,
       farePen: segment.farePen,
       fareRangePen: segment.fareRangePen,
       routeColor: segment.routeColor,
+      vehicleType: segment.vehicleType,
+      routeGeometryVerified: segment.routeGeometryVerified,
     });
     return routes;
   }, []);
@@ -339,6 +361,11 @@ export default function PlaceMap({
 
       // 3. Render Route Polyline from OSRM
       if (routeSegments.length > 0) {
+        const makeTooltip = (text: string) => {
+          const element = document.createElement('span');
+          element.textContent = text;
+          return element;
+        };
         routeSegments.forEach((segment, index) => {
           if (segment.coordinates.length < 2) return;
           const routeKey = segment.routeId ?? segment.routeColor ?? `segment-${index}`;
@@ -354,13 +381,16 @@ export default function PlaceMap({
                 ? segment.routeColor ?? '#D97706'
                 : '#64748B';
           const legClass = `map-route-leg-${segment.legId ?? 'other'}`;
+          const routeIsVerified =
+            segment.kind !== 'transit' ||
+            (segment.routeGeometryVerified === true && !segment.isApproximate);
           L.polyline(segment.coordinates, {
             color: '#fff',
-            weight: segment.kind === 'transit' ? 9 : 6,
+            weight: segment.kind === 'transit' ? 8 : 6,
             opacity: 0.85,
             dashArray: segment.kind === 'walking'
               ? '4 7'
-              : segment.isApproximate
+              : !routeIsVerified || segment.isApproximate
                 ? '6 7'
                 : undefined,
             className: `map-route-casing ${legClass}`,
@@ -368,26 +398,30 @@ export default function PlaceMap({
           }).addTo(routeLayer);
           const line = L.polyline(segment.coordinates, {
             color,
-            weight: segment.kind === 'transit' ? 5 : 3,
+            weight: segment.kind === 'transit' ? 4 : 3,
             opacity: 0.9,
             dashArray: segment.kind === 'walking'
               ? '4 7'
-              : segment.isApproximate
+              : !routeIsVerified || segment.isApproximate
                 ? '6 7'
                 : undefined,
             className: `map-route-line map-route-${segment.kind} ${legClass}`,
             lineJoin: 'round',
           }).addTo(routeLayer);
-          line.bindTooltip(
-            `${segment.label}${segment.distanceKm != null ? ` · ${segment.distanceKm.toFixed(1)} km` : ''}`,
-            { sticky: true }
-          );
+          const routeTooltip =
+            `${segment.label}${segment.distanceKm != null ? ` · ${segment.distanceKm.toFixed(1)} km` : ''}` +
+            (segment.kind === 'transit'
+              ? routeIsVerified
+                ? ' · Traza verificada'
+                : ' · Recorrido referencial entre paraderos'
+              : '');
+          line.bindTooltip(makeTooltip(routeTooltip), { sticky: true });
           if (segment.kind === 'transit' && segment.estimatedMinutes != null) {
             const midpoint =
               segment.coordinates[Math.floor(segment.coordinates.length / 2)];
             const durationIcon = L.divIcon({
               className: `map-route-duration-pin ${legClass}`,
-              html: `<span title="Tiempo estimado del bus; no incluye espera">Leg ${segment.legId ?? '?'} · bus ~${segment.estimatedMinutes} min</span>`,
+              html: `<span title="Duración referencial${segment.waitMinutes ? `; incluye ${segment.waitMinutes} min de espera media` : ''}">Leg ${segment.legId ?? '?'} · ~${segment.estimatedMinutes + (segment.waitMinutes ?? 0)} min</span>`,
               iconSize: [145, 26],
               iconAnchor: [72, 13],
             });
@@ -399,29 +433,37 @@ export default function PlaceMap({
           }
           const start = segment.coordinates[0];
           const end = segment.coordinates[segment.coordinates.length - 1];
-          const endpointIcon = (action: string, label: string) =>
+          const endpointIcon = (action: string) =>
             L.divIcon({
               className: `route-endpoint-pin ${legClass}`,
-              html: `<div aria-label="${label}">🚌 ${action} ${segment.legId ?? ''}</div>`,
+              html: `<div>${segment.vehicleType === 'taxi' ? '🚕' : '🚌'} ${action} ${segment.legId ?? ''}</div>`,
               iconSize: [88, 30],
               iconAnchor: [44, 43],
             });
           if (segment.kind === 'transit') {
-            L.marker(start, {
-              icon: endpointIcon('Sube', `Sube ${segment.legId ?? ''}`),
+            const boardingMarker = L.marker(start, {
+              icon: endpointIcon('Sube'),
               zIndexOffset: 700,
-            })
-              .addTo(routeLayer)
-              .bindTooltip(`Leg ${segment.legId ?? ''} · Sube en el paradero indicado`)
+            }).addTo(routeLayer);
+            boardingMarker
+              .bindTooltip(
+                makeTooltip(
+                  `Leg ${segment.legId ?? ''} · Sube en ${segment.boardingStop ?? 'paradero referencial'}`
+                )
+              )
               .on('click', () => {
                 if (segment.legId) onSelectLegRef.current?.(segment.legId);
               });
-            L.marker(end, {
-              icon: endpointIcon('Baja', `Baja ${segment.legId ?? ''}`),
+            const dropoffMarker = L.marker(end, {
+              icon: endpointIcon('Baja'),
               zIndexOffset: 700,
-            })
-              .addTo(routeLayer)
-              .bindTooltip(`Leg ${segment.legId ?? ''} · Baja en el paradero indicado`)
+            }).addTo(routeLayer);
+            dropoffMarker
+              .bindTooltip(
+                makeTooltip(
+                  `Leg ${segment.legId ?? ''} · Baja en ${segment.dropoffStop ?? 'paradero referencial'}`
+                )
+              )
               .on('click', () => {
                 if (segment.legId) onSelectLegRef.current?.(segment.legId);
               });
@@ -652,14 +694,19 @@ export default function PlaceMap({
                     <strong>{route.legId ? `Leg ${route.legId}` : route.tripLabel || `Trayecto ${index + 1}`}</strong>
                     <span>
                       {route.estimatedMinutes != null
-                      ? `${route.isTransit ? 'bus' : 'a pie'} ~${route.estimatedMinutes} min · `
+                      ? `${route.isTransit ? 'transporte' : 'a pie'} ~${route.estimatedMinutes + (route.waitMinutes ?? 0)} min${route.waitMinutes ? ` (incluye ~${route.waitMinutes} min de espera)` : ''} · `
                         : ''}
                       {route.farePen != null
                         ? route.fareRangePen
                           ? `S/ ${route.fareRangePen[0].toFixed(2)}–${route.fareRangePen[1].toFixed(2)} · `
                           : `S/ ${route.farePen.toFixed(2)} · `
                         : ''}
-                    {route.label}{route.isTransit ? ' · trazo aproximado' : ''}
+                    {route.label}
+                    {route.isTransit
+                      ? route.routeGeometryVerified
+                        ? ' · traza verificada'
+                        : ' · recorrido referencial entre paraderos'
+                      : ''}
                     </span>
                   </span>
                 </label>

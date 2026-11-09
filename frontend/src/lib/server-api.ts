@@ -4,6 +4,7 @@
  */
 import { CalendarResponse, NearbyPlace, Place, PlaceDetail } from "./types";
 import snapshotFallbackData from "@/data/places_snapshot.json";
+import placeAdditionsData from "@/data/places_additions.json";
 import { getLocalImageUrl } from "./safeUrl";
 
 const BASE = process.env.INTERNAL_API_URL ?? "http://127.0.0.1:8000";
@@ -30,13 +31,16 @@ type SnapshotPlace = {
   menu_url?: string | null;
   opening_hours?: string | null;
   safety_score?: number | null;
+  source?: string;
 };
 
 function getFallbackPlaces(): Place[] {
   try {
-    const raw = snapshotFallbackData as unknown as { places?: SnapshotPlace[] };
-    if (raw?.places && Array.isArray(raw.places) && raw.places.length > 0) {
-      return raw.places
+    const snapshot = snapshotFallbackData as unknown as { places?: SnapshotPlace[] };
+    const additions = placeAdditionsData as unknown as { places?: SnapshotPlace[] };
+    const places = [...(snapshot.places ?? []), ...(additions.places ?? [])];
+    if (places.length > 0) {
+      return places
         .filter((item) => item.place_id != null || item.id != null)
         .map((item) => ({
         id: item.place_id ?? item.id ?? 0,
@@ -62,14 +66,18 @@ function getFallbackPlaces(): Place[] {
         website: item.website,
         menu_url: item.menu_url,
         opening_hours: item.opening_hours,
-        score:
-          item.kind === "attraction"
+        score: item.source === "openstreetmap"
+          ? item.stars
+            ? Math.min(95, Math.round(item.stars * 20))
+            : null
+          : item.kind === "attraction"
             ? 88
             : item.stars
-            ? Math.min(95, Math.round(item.stars * 20))
-            : 75,
+              ? Math.min(95, Math.round(item.stars * 20))
+              : 75,
         confidence: null,
-        safety_score: item.safety_score ?? 82,
+        safety_score:
+          item.safety_score ?? (item.source === "openstreetmap" ? null : 82),
         temp_max_c: item.coast_type === "coastal" ? 22.4 : 25.1,
         wave_height_m: item.coast_type === "coastal" ? 1.4 : null,
       }));

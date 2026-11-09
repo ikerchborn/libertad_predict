@@ -16,7 +16,7 @@
 }
 
 .map-shell .map-route-muted {
-  opacity: 0.16 !important;
+  opacity: 0.2 !important;
   transition: opacity 140ms ease;
 }
 
@@ -32,6 +32,10 @@
 .map-shell .route-endpoint-pin {
   border: 0;
   background: transparent;
+}
+
+.map-shell .route-endpoint-pin.map-route-muted {
+  opacity: 0.2 !important;
 }
 
 .map-shell .route-endpoint-pin > div {

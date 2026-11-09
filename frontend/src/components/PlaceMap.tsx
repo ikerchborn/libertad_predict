@@ -497,9 +497,7 @@ export default function PlaceMap({
             routeTooltip.appendChild(badge);
           }
           const routeDescription = document.createElement('span');
-          routeDescription.textContent =
-            `${segment.label}${segment.distanceKm != null ? ` · ${segment.distanceKm.toFixed(1)} km` : ''}` +
-            '';
+          routeDescription.textContent = `${segment.label}${segment.distanceKm != null ? ` · ${segment.distanceKm.toFixed(1)} km` : ''}`;
           routeTooltip.appendChild(routeDescription);
           line.bindTooltip(routeTooltip, { sticky: true });
           if (segment.kind === 'walking' && segment.coordinates.length > 1) {
@@ -541,16 +539,28 @@ export default function PlaceMap({
             container.append(badge, label);
             return container;
           };
-          const endpointIconForLeaflet = (action: string) =>
+          const collidesWithPlaceMarker = (point: [number, number]) =>
+            routePlaces.some(
+              (routePlace) =>
+                Math.abs(routePlace.lat - point[0]) < 0.00015 &&
+                Math.abs(routePlace.lon - point[1]) < 0.00015
+            );
+          const endpointIconForLeaflet = (
+            action: string,
+            point: [number, number]
+          ) =>
             L.divIcon({
               className: `route-endpoint-pin ${legClass}`,
               html: endpointIcon(action),
               iconSize: [88, 30],
-              iconAnchor: [44, 43],
+              iconAnchor: [
+                44,
+                collidesWithPlaceMarker(point) ? 67 : 43,
+              ],
             });
           if (segment.kind === 'transit') {
             const boardingMarker = L.marker(start, {
-              icon: endpointIconForLeaflet('Sube'),
+              icon: endpointIconForLeaflet('Sube', start),
               zIndexOffset: 700,
             }).addTo(routeLayer);
             const boardingTooltip = document.createElement('div');
@@ -574,7 +584,7 @@ export default function PlaceMap({
                 onSelectTransitRouteRef.current?.(segment);
               });
             const dropoffMarker = L.marker(end, {
-              icon: endpointIconForLeaflet('Baja'),
+              icon: endpointIconForLeaflet('Baja', end),
               zIndexOffset: 700,
             }).addTo(routeLayer);
             const dropoffTooltip = document.createElement('div');

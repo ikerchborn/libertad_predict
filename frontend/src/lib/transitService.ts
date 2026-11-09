@@ -14,6 +14,9 @@ interface CatalogStop {
   longitude: number;
   address?: string;
   landmark_hint?: string;
+  street?: string;
+  urbanization?: string;
+  sector?: string;
 }
 
 interface CatalogRoute {
@@ -78,6 +81,10 @@ interface TruxdiStop {
   geometry_position?: number;
   geometry_distance_m?: number;
   landmark_hint?: string;
+  street?: string;
+  address?: string;
+  urbanization?: string;
+  sector?: string;
 }
 
 interface TruxdiRoute {
@@ -405,6 +412,24 @@ function getTruxdiTransitCandidates(
           const routeCode =
             route.route_code ?? route.source_route_code ?? route.route_id;
           const badgeColor = route.badge_color ?? getRouteColor(routeCode);
+          const boardingStopName = sanitizeStopName(
+            boarding.stop.name,
+            boarding.stop.coordinates,
+            boarding.stop.street ??
+              boarding.stop.address ??
+              boarding.stop.urbanization ??
+              boarding.stop.sector ??
+              findNearbyReadableStopName(stops, boarding.stop)
+          );
+          const dropoffStopName = sanitizeStopName(
+            alighting.stop.name,
+            alighting.stop.coordinates,
+            alighting.stop.street ??
+              alighting.stop.address ??
+              alighting.stop.urbanization ??
+              alighting.stop.sector ??
+              findNearbyReadableStopName(stops, alighting.stop)
+          );
           const walkMinutes =
             ((boarding.distanceKm + alighting.distanceKm) / 4.5) * 60 * 1.3;
           const waitMinutes = 6;
@@ -427,8 +452,8 @@ function getTruxdiTransitCandidates(
               fareRangePen: [route.fare.standard, route.fare.standard],
               estimatedMinutes,
               waitMinutes,
-              boardingStop: boarding.stop.name,
-              dropoffStop: alighting.stop.name,
+              boardingStop: boardingStopName,
+              dropoffStop: dropoffStopName,
               boardingPoint: [
                 boarding.stop.coordinates[1],
                 boarding.stop.coordinates[0],
@@ -437,7 +462,7 @@ function getTruxdiTransitCandidates(
                 alighting.stop.coordinates[1],
                 alighting.stop.coordinates[0],
               ],
-              instructions: `Camina hasta ${boarding.stop.name}, aborda ${route.company_name ?? routeCode} (${routeCode}) y desciende en ${alighting.stop.name}.`,
+              instructions: `Camina hasta ${boardingStopName}, sube a ${route.company_name ?? routeCode} (${routeCode}) y baja en ${dropoffStopName}.`,
               confidence,
               source: `Truxdi · ${sourceDirection?.review_status ?? 'revision pendiente'}`,
               routeGeometry,
@@ -497,6 +522,86 @@ function cleanTransitCopy(value?: string): string | undefined {
   return cleaned || undefined;
 }
 
+function isInventoryStopName(value: string): boolean {
+  return (
+    /(?:^|\s)(?:punto|nodo|pt)\s*\d+\s*$/i.test(value.trim()) ||
+    /^(?:OSM[-\s]*\d+|[A-Z]{1,8}[- ]?\d+[A-Z0-9-]*)$/i.test(value.trim())
+  );
+}
+
+export function sanitizeStopName(
+  stopName: string,
+  coordinates: [number, number],
+  fallbackZone?: string
+): string {
+  if (!isInventoryStopName(stopName)) {
+    return cleanTransitCopy(stopName) ?? 'Paradero sugerido';
+  }
+  if (!coordinates.every(Number.isFinite)) return 'Paradero sugerido';
+  const fallback = cleanTransitCopy(fallbackZone);
+  return fallback && !isInventoryStopName(fallback)
+    ? fallback
+    : 'Paradero sugerido';
+}
+
+function findNearbyReadableStopName(
+  stops: TruxdiStop[],
+  targetStop: TruxdiStop
+): string | undefined {
+  return stops
+    .filter((stop) => !isInventoryStopName(stop.name))
+    .map((stop) => ({
+      stop,
+      distanceKm: haversineKm(
+        targetStop.coordinates[1],
+        targetStop.coordinates[0],
+        stop.coordinates[1],
+        stop.coordinates[0]
+      ),
+    }))
+    .filter(({ distanceKm }) => distanceKm <= 0.75)
+    .sort((left, right) => left.distanceKm - right.distanceKm)
+    .map(({ stop }) =>
+      cleanTransitCopy(
+        stop.street ??
+          stop.address ??
+          stop.urbanization ??
+          stop.landmark_hint ??
+          stop.name
+      )
+    )
+    .find((name): name is string => Boolean(name));
+}
+
+function findNearbyReadableCatalogStopName(
+  targetStop: CatalogStop
+): string | undefined {
+  return [...catalogStops.values()]
+    .filter((stop) => stop.id !== targetStop.id && !isInventoryStopName(stop.name))
+    .map((stop) => ({
+      stop,
+      distanceKm: haversineKm(
+        targetStop.latitude,
+        targetStop.longitude,
+        stop.latitude,
+        stop.longitude
+      ),
+    }))
+    .filter(({ distanceKm }) => distanceKm <= 0.75)
+    .sort((left, right) => left.distanceKm - right.distanceKm)
+    .map(({ stop }) =>
+      cleanTransitCopy(
+        stop.street ??
+          stop.address ??
+          stop.urbanization ??
+          stop.sector ??
+          stop.landmark_hint ??
+          stop.name
+      )
+    )
+    .find((name): name is string => Boolean(name));
+}
+
 function cleanLandmarkHint(stopName: string, hint?: string): string | undefined {
   const stop = cleanTransitCopy(stopName);
   let landmark = cleanTransitCopy(hint);
@@ -549,6 +654,24 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     ? route.geometry_vuelta_verified === true && Boolean(route.geometry_vuelta)
     : (route.geometry_ida_verified ?? route.geometryVerified) === true &&
       Boolean(route.geometry_ida ?? route.routeGeometry);
+  const boardingStopName = sanitizeStopName(
+    boarding.name,
+    [boarding.longitude, boarding.latitude],
+    boarding.street ??
+      boarding.address ??
+      boarding.urbanization ??
+      boarding.sector ??
+      findNearbyReadableCatalogStopName(boarding)
+  );
+  const dropoffStopName = sanitizeStopName(
+    dropoff.name,
+    [dropoff.longitude, dropoff.latitude],
+    dropoff.street ??
+      dropoff.address ??
+      dropoff.urbanization ??
+      dropoff.sector ??
+      findNearbyReadableCatalogStopName(dropoff)
+  );
 
   return {
     code: route.code,
@@ -560,11 +683,11 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     waitMinutes:
       route.headwayMinutes ??
       (route.category === 'urbano' ? 6 : route.category === 'local' ? 8 : 15),
-    boardingStop: boarding.name,
-    dropoffStop: dropoff.name,
+    boardingStop: boardingStopName,
+    dropoffStop: dropoffStopName,
     boardingPoint: [boarding.latitude, boarding.longitude],
     dropoffPoint: [dropoff.latitude, dropoff.longitude],
-    instructions: `Ruta ${reverse ? 'de retorno' : 'de salida'} desde ${boarding.name}.`,
+    instructions: `Ruta ${reverse ? 'de retorno' : 'de salida'} desde ${boardingStopName}.`,
     confidence: route.confidence,
     source: route.source,
     routeGeometry,
@@ -574,8 +697,14 @@ function reverseRoute(route: CatalogRoute, reverse: boolean): TransitOption {
     companyName: route.company_name ?? route.serviceName,
     badgeColor: getBadgeColor(route),
     textColor: route.text_color ?? TEXT_ON_DARK,
-    boardingLandmarkHint: boardingStop?.landmark_hint ?? boardingStop?.address,
-    dropoffLandmarkHint: dropoffStop?.landmark_hint ?? dropoffStop?.address,
+    boardingLandmarkHint: cleanLandmarkHint(
+      boardingStopName,
+      boardingStop?.landmark_hint ?? boardingStop?.address
+    ),
+    dropoffLandmarkHint: cleanLandmarkHint(
+      dropoffStopName,
+      dropoffStop?.landmark_hint ?? dropoffStop?.address
+    ),
   };
 }
 
@@ -705,6 +834,65 @@ export function calculateTaxiEstimate(distKm: number): {
   return { fareMin, fareMax, fareAvg, estimatedMinutes };
 }
 
+function isInternalIntraZoneWalk(
+  origin: Place,
+  destination: Place,
+  distanceKm = haversineKm(origin.lat, origin.lon, destination.lat, destination.lon)
+): boolean {
+  const isKnownChanChanPair =
+    (origin.id === 3 && destination.id === 415) ||
+    (origin.id === 415 && destination.id === 3);
+  return getZone(origin) === 'chan_chan' &&
+    getZone(destination) === 'chan_chan' &&
+    (distanceKm <= 1.2 || (isKnownChanChanPair && distanceKm <= 3));
+}
+
+function createInternalWalkOption(
+  origin: Place,
+  destination: Place,
+  walkingRoute?: OsrmRouteResult | null
+): TransitOption {
+  const directDistanceKm = haversineKm(
+    origin.lat,
+    origin.lon,
+    destination.lat,
+    destination.lon
+  );
+  const validWalkingRoute =
+    walkingRoute &&
+      !walkingRoute.isFallback &&
+      walkingRoute.distanceKm <= 1.2 &&
+      walkingRoute.distanceKm <= Math.max(directDistanceKm * 2.5, directDistanceKm + 0.2)
+      ? walkingRoute
+      : null;
+  const routeDistanceKm = validWalkingRoute
+    ? validWalkingRoute.distanceKm
+    : directDistanceKm;
+  const durationMinutes = validWalkingRoute && validWalkingRoute.durationMin > 0
+    ? validWalkingRoute.durationMin
+    : Math.max(1, Math.round((routeDistanceKm / 4.5) * 60));
+  return {
+    code: 'WALK-INTERNAL',
+    serviceName: 'Sendero peatonal interno',
+    vehicleType: 'caminata',
+    farePen: 0,
+    estimatedMinutes: durationMinutes,
+    waitMinutes: 0,
+    boardingStop: origin.name,
+    dropoffStop: destination.name,
+    boardingPoint: [origin.lat, origin.lon],
+    dropoffPoint: [destination.lat, destination.lon],
+    instructions: `Caminar ~${durationMinutes} min por el sendero interior del complejo hasta ${destination.name}.`,
+    routeGeometry: validWalkingRoute
+      ? validWalkingRoute.coordinates
+      : [[origin.lat, origin.lon], [destination.lat, destination.lon]],
+    routeGeometryVerified: Boolean(validWalkingRoute),
+    routeDistanceKm,
+    confidence: 'media',
+    source: 'Caminata interna en Chan Chan',
+  };
+}
+
 function getTransitBetweenPlacesBase(
   origin: Place,
   destination: Place,
@@ -714,6 +902,10 @@ function getTransitBetweenPlacesBase(
   const dist = haversineKm(origin.lat, origin.lon, destination.lat, destination.lon);
   const fromZone = getZone(origin);
   const toZone = getZone(destination);
+
+  if (isInternalIntraZoneWalk(origin, destination, dist)) {
+    return createInternalWalkOption(origin, destination);
+  }
 
   if (dist <= 0.3) {
     return {
@@ -1015,7 +1207,11 @@ export function getTransitBetweenPlaces(
 ): TransitOption {
   const transit = getTransitBetweenPlacesBase(origin, destination, urbanFare);
   if (
-    (transit.vehicleType === 'micro' || transit.vehicleType === 'combi') &&
+    (
+      transit.vehicleType === 'micro' ||
+      transit.vehicleType === 'combi' ||
+      transit.vehicleType === 'colectivo'
+    ) &&
     (
       haversineKm(origin.lat, origin.lon, transit.boardingPoint[0], transit.boardingPoint[1]) >
         MAX_UNVERIFIED_WALK_TO_STOP_KM ||
@@ -1023,7 +1219,13 @@ export function getTransitBetweenPlaces(
         MAX_UNVERIFIED_WALK_TO_STOP_KM
     )
   ) {
-    return enrichTransitOption(getDirectTaxiOption(origin, destination));
+    return enrichTransitOption(
+      getDirectTaxiOption(
+        origin,
+        destination,
+        'El paradero queda a más de 1 km a pie o el acceso no se pudo validar; taxi directo recomendado.'
+      )
+    );
   }
   return enrichTransitOption(transit);
 }
@@ -1038,7 +1240,11 @@ function getTransitFallbackWithoutTruxdi(
   );
 }
 
-function getDirectTaxiOption(origin: Place, destination: Place): TransitOption {
+function getDirectTaxiOption(
+  origin: Place,
+  destination: Place,
+  accessNote?: string
+): TransitOption {
   const distanceKm = haversineKm(origin.lat, origin.lon, destination.lat, destination.lon);
   const taxi = calculateTaxiEstimate(distanceKm);
   return {
@@ -1055,6 +1261,7 @@ function getDirectTaxiOption(origin: Place, destination: Place): TransitOption {
     boardingPoint: [origin.lat, origin.lon],
     dropoffPoint: [destination.lat, destination.lon],
     instructions: 'Viaje directo en taxi.',
+    warning: accessNote,
     confidence: 'media',
     source: 'Estimación de taxi por distancia',
   };
@@ -1066,7 +1273,11 @@ async function getFallbackTransitWithAccessLimit(
   urbanFare: number
 ): Promise<TransitOption> {
   const transit = getTransitFallbackWithoutTruxdi(origin, destination, urbanFare);
-  if (transit.vehicleType !== 'micro' && transit.vehicleType !== 'combi') {
+  if (
+    transit.vehicleType !== 'micro' &&
+    transit.vehicleType !== 'combi' &&
+    transit.vehicleType !== 'colectivo'
+  ) {
     return transit;
   }
 
@@ -1092,7 +1303,13 @@ async function getFallbackTransitWithAccessLimit(
   });
 
   return tooFarToWalk
-    ? enrichTransitOption(getDirectTaxiOption(origin, destination))
+    ? enrichTransitOption(
+        getDirectTaxiOption(
+          origin,
+          destination,
+          'El paradero queda a más de 1 km a pie o el acceso no se pudo validar; taxi directo recomendado.'
+        )
+      )
     : transit;
 }
 
@@ -1118,7 +1335,7 @@ async function resolveTruxdiTransit(
       ),
     ];
     const accessRoutes: Array<OsrmRouteResult | null> = await Promise.all([
-      accessDistances[0] > 0.3
+      accessDistances[0] > 0.05
         ? getWalkingRoute([origin.lat, origin.lon], transit.boardingPoint)
         : Promise.resolve(null),
       accessDistances[1] > 0.05
@@ -1126,7 +1343,7 @@ async function resolveTruxdiTransit(
         : Promise.resolve(null),
     ]);
     const inaccessible = accessRoutes.some((route, index) => {
-      if (!route) return accessDistances[index] > 0.3;
+      if (!route) return accessDistances[index] > 0.05;
       if (route.distanceKm > MAX_URBAN_WALK_TO_STOP_KM) return true;
       return route.isFallback &&
         accessDistances[index] > MAX_UNVERIFIED_WALK_TO_STOP_KM;
@@ -1135,7 +1352,7 @@ async function resolveTruxdiTransit(
 
     const unverifiedAccess = accessRoutes.some(
       (route, index) =>
-        accessDistances[index] > 0.3 && (!route || route.isFallback)
+        accessDistances[index] > 0.05 && (!route || route.isFallback)
     );
     return {
       ...transit,
@@ -1165,6 +1382,15 @@ export async function resolveTransitBetweenPlaces(
     destination.lat,
     destination.lon
   );
+  if (isInternalIntraZoneWalk(origin, destination, directDistanceKm)) {
+    const walkingRoute = await getWalkingRoute(
+      [origin.lat, origin.lon],
+      [destination.lat, destination.lon]
+    );
+    return enrichTransitOption(
+      createInternalWalkOption(origin, destination, walkingRoute)
+    );
+  }
   if (directDistanceKm < 0.3) {
     return getTransitBetweenPlaces(origin, destination, urbanFare);
   }

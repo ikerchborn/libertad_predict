@@ -361,7 +361,7 @@ export function HomePlacesClient({
             destination: [destination.lat, destination.lon],
             mode: "walking",
             kind: "walking",
-            label: `Camina desde ${origin.name} hasta ${destination.name}`,
+            label: `${transit.code === "WALK-INTERNAL" ? "Sendero peatonal interno" : "Camina"}: ${origin.name} → ${destination.name}`,
             tripLabel,
             estimatedMinutes: transit.estimatedMinutes,
             routeGeometry: transit.routeGeometry,
@@ -939,6 +939,33 @@ export function HomePlacesClient({
           : {}),
       }
     : null;
+  const selectedMapPlaceDescription = [
+    selectedMapPlaceInfo?.description,
+    selectedMapPlaceInfo
+      ? PLACE_IMAGES[selectedMapPlaceInfo.id]?.description
+      : undefined,
+  ]
+    .map((description) => description?.trim())
+    .find(
+      (description): description is string =>
+        Boolean(description) &&
+      !/^no hay una descripci[oó]n disponible\b/i.test(description ?? "")
+    );
+  const recommendationScoreValue = [
+    selectedMapPlaceInfo?.recommendation_score,
+    selectedMapPlaceInfo?.score,
+  ]
+    .map(Number)
+    .find((score) => Number.isFinite(score) && score > 0) ?? 0;
+  const recommendationScore =
+    Number.isFinite(recommendationScoreValue) && recommendationScoreValue > 0
+      ? Math.round(recommendationScoreValue)
+      : null;
+  const safetyScoreValue = Number(selectedMapPlaceInfo?.safety_score ?? 0);
+  const safetyScore =
+    Number.isFinite(safetyScoreValue) && safetyScoreValue > 0
+      ? Math.round(safetyScoreValue)
+      : null;
   const selectedMapPlaceImage = selectedMapPlaceInfo
     ? getLocalImageUrl(selectedMapPlaceInfo.image_url) ??
       PLACE_IMAGES[selectedMapPlaceInfo.id]?.image
@@ -1506,7 +1533,7 @@ export function HomePlacesClient({
                       Tiempo estimado
                     </span>
                     <p className="mt-0.5 text-sm font-extrabold text-adobe-dark">
-                      ~{estimatedTransitMinutes + estimatedWalkingMinutes} min
+                      ~{routeStats?.min ?? estimatedTransitMinutes + estimatedWalkingMinutes} min
                       <span className="ml-1 font-normal text-adobe-muted">sin esperas</span>
                     </p>
                   </div>
@@ -1960,10 +1987,13 @@ export function HomePlacesClient({
                                   </div>
                                   <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="rounded-full bg-amber-900/10 px-2 py-1 text-[10px] font-bold text-amber-950">
+                                        Leg {legId}
+                                      </span>
                                       <span className="font-bold text-amber-950 text-sm">
                                         {transit.vehicleType === "micro" ? "Microbús" : transit.vehicleType === "combi" ? "Combi" : transit.vehicleType === "bus" ? "Bus" : transit.vehicleType === "mototaxi" ? "Mototaxi" : transit.vehicleType === "taxi" ? "Taxi / Aplicativo" : "Caminata"}
                                       </span>
-                                      <span
+                                      {transit.vehicleType !== "caminata" && <span
                                         className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold"
                                         style={{
                                           backgroundColor: transit.badgeColor ?? "#92400E",
@@ -1976,6 +2006,7 @@ export function HomePlacesClient({
                                           {transit.companyName ?? transit.serviceName}
                                         </span>
                                       </span>
+                                      }
                                     </div>
                                     <div className="mt-1.5 space-y-1 text-[12px] leading-snug text-amber-950">
                                       {transit.vehicleType === "caminata" ? (
@@ -2015,7 +2046,7 @@ export function HomePlacesClient({
                                                 <React.Fragment key={`${routeLeg.code}-${routeLegIndex}`}>
                                                   <li>
                                                     <b>{routeLegIndex === 0 ? "Sube" : "Cambia de micro"}:</b>{" "}
-                                                    {routeLeg.vehicleType === "mototaxi" ? "mototaxi" : "microbús"} <b>{routeLeg.routeCode ?? routeLeg.code}</b> · {routeLeg.companyName ?? routeLeg.serviceName} en <b>{routeLeg.boardingStop}</b>
+                                                    {routeLeg.vehicleType === "mototaxi" ? "mototaxi" : routeLeg.vehicleType === "colectivo" ? "colectivo" : "microbús"} <b>{routeLeg.routeCode ?? routeLeg.code}</b> · {routeLeg.companyName ?? routeLeg.serviceName} en <b>{routeLeg.boardingStop}</b>
                                                     {getUsefulLandmarkHint(routeLeg.boardingStop, routeLeg.boardingLandmarkHint) && ` · ${getUsefulLandmarkHint(routeLeg.boardingStop, routeLeg.boardingLandmarkHint)}`}; espera media ~{routeLeg.waitMinutes} min.
                                                   </li>
                                                   <li>
@@ -2040,7 +2071,7 @@ export function HomePlacesClient({
                                           ) : (
                                             <>
                                               <li>
-                                                <b>Sube:</b> {transit.vehicleType === "combi" ? "combi" : "microbús"} <b>{transit.routeCode ?? transit.code}</b> · {transit.companyName ?? transit.serviceName} en <b>{transit.boardingStop}</b>
+                                                <b>Sube:</b> {transit.vehicleType === "combi" ? "combi" : transit.vehicleType === "colectivo" ? "colectivo" : "microbús"} <b>{transit.routeCode ?? transit.code}</b> · {transit.companyName ?? transit.serviceName} en <b>{transit.boardingStop}</b>
                                                 {getUsefulLandmarkHint(transit.boardingStop, transit.boardingLandmarkHint) && ` · ${getUsefulLandmarkHint(transit.boardingStop, transit.boardingLandmarkHint)}`}
                                                 {transit.headsign && !/no verificado|referencial/i.test(transit.headsign) && <>; busca el letrero <b>{transit.headsign}</b></>}
                                                 {transit.waitMinutes > 0 && `; espera media ~${transit.waitMinutes} min.`}
@@ -2060,9 +2091,12 @@ export function HomePlacesClient({
                                         </>
                                       )}
                                     </div>
-                                    {transit.vehicleType !== "caminata" && transit.vehicleType !== "taxi" && (
+                                    {transit.vehicleType !== "caminata" &&
+                                      (transit.vehicleType !== "taxi" || transit.warning) && (
                                       <p className="mt-1.5 text-[10px] text-amber-800/80">
-                                        Paraderos sugeridos; confirma el destino con el cobrador al subir.
+                                        {transit.vehicleType === "taxi"
+                                          ? transit.warning
+                                          : "Paraderos sugeridos; confirma el destino con el cobrador al subir."}
                                       </p>
                                     )}
                                     {alternatives.length > 1 && (
@@ -2212,19 +2246,24 @@ export function HomePlacesClient({
                             <h3 className="truncate text-sm font-bold text-adobe-dark">
                               {selectedMapPlaceInfo.name}
                             </h3>
-                            <p className="truncate text-[10px] text-adobe-muted">
-                              {selectedMapPlaceInfo.address || "Dirección no disponible"}
-                            </p>
-                            <p className="text-[10px] font-semibold text-amber-700">
-                              {selectedMapPlaceInfo.stars != null
-                                ? `★ ${selectedMapPlaceInfo.stars.toFixed(1)}`
-                                : selectedMapPlaceInfo.external_rating != null
-                                  ? `★ ${selectedMapPlaceInfo.external_rating.toFixed(1)}`
-                                  : "Sin valoración"}
-                              {selectedMapPlaceInfo.user_rating_count != null
-                                ? ` · ${selectedMapPlaceInfo.user_rating_count} reseñas`
-                                : ""}
-                            </p>
+                            {selectedMapPlaceInfo.address && (
+                              <p className="truncate text-[10px] text-adobe-muted">
+                                {selectedMapPlaceInfo.address}
+                              </p>
+                            )}
+                            {(selectedMapPlaceInfo.stars != null ||
+                              selectedMapPlaceInfo.external_rating != null) && (
+                              <p className="text-[10px] font-semibold text-amber-700">
+                                {selectedMapPlaceInfo.stars != null
+                                  ? `★ ${selectedMapPlaceInfo.stars.toFixed(1)}`
+                                  : selectedMapPlaceInfo.external_rating != null
+                                    ? `★ ${selectedMapPlaceInfo.external_rating.toFixed(1)}`
+                                    : ""}
+                                {selectedMapPlaceInfo.user_rating_count != null
+                                  ? ` · ${selectedMapPlaceInfo.user_rating_count} reseñas`
+                                  : ""}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <button
@@ -2244,23 +2283,17 @@ export function HomePlacesClient({
 
                       {isSelectedMapPlaceExpanded && (
                         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-                        <p className="text-sm leading-relaxed text-adobe-dark">
-                          {selectedMapPlaceInfo.description ||
-                            PLACE_IMAGES[selectedMapPlaceInfo.id]?.description ||
-                            "No hay una descripción disponible para este lugar."}
-                        </p>
+                        {selectedMapPlaceDescription && (
+                          <p className="text-sm leading-relaxed text-adobe-dark">
+                            {selectedMapPlaceDescription}
+                          </p>
+                        )}
 
                         {selectedMapPlaceDetailStatus === "loading" && (
                           <p role="status" className="text-xs text-adobe-muted">
                             Cargando datos completos del lugar…
                           </p>
                         )}
-                        {selectedMapPlaceDetailStatus === "error" && (
-                          <p role="status" className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
-                            No se pudo obtener información adicional. Se muestran los datos disponibles del mapa.
-                          </p>
-                        )}
-
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="rounded-lg bg-adobe-bg p-2">
                             <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Tipo</span>
@@ -2279,19 +2312,22 @@ export function HomePlacesClient({
                                 : " · Valle/interior"}
                             </span>
                           </div>
-                          <div className="rounded-lg bg-adobe-bg p-2">
-                            <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Valoración</span>
-                            <span className="mt-0.5 block font-semibold text-adobe-dark">
-                              {selectedMapPlaceInfo.stars != null
-                                ? `★ ${selectedMapPlaceInfo.stars.toFixed(1)} / 5`
-                                : selectedMapPlaceInfo.external_rating != null
-                                  ? `★ ${selectedMapPlaceInfo.external_rating.toFixed(1)} / 5`
-                                  : "Sin valoración"}
-                              {selectedMapPlaceInfo.user_rating_count != null
-                                ? ` · ${selectedMapPlaceInfo.user_rating_count} reseñas`
-                                : ""}
-                            </span>
-                          </div>
+                          {(selectedMapPlaceInfo.stars != null ||
+                            selectedMapPlaceInfo.external_rating != null) && (
+                            <div className="rounded-lg bg-adobe-bg p-2">
+                              <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Valoración</span>
+                              <span className="mt-0.5 block font-semibold text-adobe-dark">
+                                {selectedMapPlaceInfo.stars != null
+                                  ? `★ ${selectedMapPlaceInfo.stars.toFixed(1)} / 5`
+                                  : selectedMapPlaceInfo.external_rating != null
+                                    ? `★ ${selectedMapPlaceInfo.external_rating.toFixed(1)} / 5`
+                                    : ""}
+                                {selectedMapPlaceInfo.user_rating_count != null
+                                  ? ` · ${selectedMapPlaceInfo.user_rating_count} reseñas`
+                                  : ""}
+                              </span>
+                            </div>
+                          )}
                           {selectedMapPlaceInfo.cuisine && (
                             <div className="rounded-lg bg-adobe-bg p-2">
                               <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Gastronomía</span>
@@ -2314,18 +2350,18 @@ export function HomePlacesClient({
                               </span>
                             </div>
                           )}
-                          {(selectedMapPlaceInfo.score != null || selectedMapPlaceInfo.recommendation_score != null) && (
+                          {recommendationScore != null && (
                             <div className="rounded-lg bg-adobe-bg p-2">
                               <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Puntaje de recomendación</span>
                               <span className="mt-0.5 block font-semibold text-adobe-dark">
-                                {selectedMapPlaceInfo.recommendation_score ?? selectedMapPlaceInfo.score} / 100
+                                {recommendationScore} / 100
                               </span>
                             </div>
                           )}
-                          {selectedMapPlaceInfo.safety_score != null && (
+                          {safetyScore != null && (
                             <div className="rounded-lg bg-adobe-bg p-2">
                               <span className="block text-[10px] font-semibold uppercase text-adobe-muted">Índice de seguridad</span>
-                              <span className="mt-0.5 block font-semibold text-adobe-dark">{selectedMapPlaceInfo.safety_score} / 100</span>
+                              <span className="mt-0.5 block font-semibold text-adobe-dark">{safetyScore} / 100</span>
                             </div>
                           )}
                           <div className="rounded-lg bg-adobe-bg p-2">

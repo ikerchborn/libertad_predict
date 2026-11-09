@@ -520,7 +520,9 @@ export default function TripPlanner({
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-amber-950 text-xs truncate">{transit.serviceName}</span>
+                            <span className="font-bold text-amber-950 text-xs truncate">
+                              {transit.vehicleType === 'micro' ? 'Microbús' : transit.vehicleType === 'combi' ? 'Combi' : transit.vehicleType === 'bus' ? 'Bus' : transit.vehicleType === 'caminata' ? 'A pie' : 'Transporte'} · {transit.companyName ?? transit.serviceName}
+                            </span>
                             <span
                               className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-extrabold"
                               style={{
@@ -528,10 +530,9 @@ export default function TripPlanner({
                                 color: transit.textColor ?? "#FFFFFF",
                               }}
                             >
-                              {transit.routeCode ?? transit.code}
-                              <span className="font-semibold">
-                                {transit.companyName ?? transit.serviceName}
-                              </span>
+                              {transit.vehicleType === 'taxi'
+                                ? 'Taxi'
+                                : `Línea ${transit.routeCode ?? transit.code}`}
                             </span>
                           </div>
                           <div className="text-[10px] text-amber-700/80 flex items-center gap-1.5 mt-0.5">

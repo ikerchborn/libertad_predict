@@ -1192,51 +1192,42 @@ export function HomePlacesClient({
 
             {/* Full-width transit budget */}
             <div className="planner-actions-budget grid grid-cols-1">
-              <section className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs sm:p-5">
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="min-w-0 sm:col-span-2 xl:col-span-1">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-adobe-muted">
-                      Presupuesto estimado de transporte ({activeDayLabel})
+              <section className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs">
+                <div className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] sm:items-center">
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted">
+                      Presupuesto estimado · {activeDayLabel}
                     </span>
-                    <div className="mt-1 font-display text-3xl font-extrabold text-adobe-dark">
+                    <div className="mt-0.5 font-display text-2xl font-extrabold leading-tight text-adobe-dark">
                       {totalTransitFareRange[0] === totalTransitFareRange[1]
                         ? `S/ ${totalTransitFareRange[0].toFixed(2)}`
                         : `S/ ${totalTransitFareRange[0].toFixed(2)}–${totalTransitFareRange[1].toFixed(2)}`}
                     </div>
                   </div>
 
-                  <div className="flex flex-col justify-center rounded-xl bg-adobe-bg/60 px-4 py-3">
+                  <div className="border-t border-adobe-border/70 pt-2 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted">
                       Tiempo estimado
                     </span>
-                    <span className="mt-1 text-lg font-extrabold text-adobe-dark">
+                    <p className="mt-0.5 text-sm font-extrabold text-adobe-dark">
                       ~{estimatedTransitMinutes + estimatedWalkingMinutes} min
-                    </span>
-                    <span className="text-[11px] text-adobe-muted">En bus y caminata, sin esperas</span>
+                      <span className="ml-1 font-normal text-adobe-muted">sin esperas</span>
+                    </p>
                   </div>
 
-                  <div className="flex flex-col justify-center rounded-xl bg-emerald-50/70 px-4 py-3">
+                  <div className="border-t border-adobe-border/70 pt-2 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
                       Recorrido del día
                     </span>
-                    <span className="mt-1 text-lg font-extrabold text-emerald-800">
+                    <p className="mt-0.5 text-sm font-extrabold text-emerald-800">
                       {dayTransitSteps.length} {dayTransitSteps.length === 1 ? "tramo" : "tramos"}
-                    </span>
-                    <span className="text-[11px] text-emerald-800">Calculados para el itinerario</span>
-                  </div>
-
-                  <div className="flex flex-col justify-center rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 sm:col-span-2 xl:col-span-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
-                      Ten en cuenta
-                    </span>
-                    <span className="mt-1 text-[11px] leading-snug text-amber-900">
-                      Confirma el destino y la tarifa con el servicio local. Rutas y paraderos son referenciales.
-                    </span>
+                      <span className="ml-1 font-normal">calculados</span>
+                    </p>
                   </div>
                 </div>
-                <div className="mt-4 flex justify-end border-t border-adobe-border/60 pt-3">
-                  <span className="text-[11px] font-mono text-adobe-muted">Montos referenciales</span>
-                </div>
+                <p className="mt-3 border-t border-adobe-border/60 pt-2 text-[10px] leading-snug text-adobe-muted">
+                  Tarifas, rutas y paraderos referenciales; confirma el destino y la tarifa con el servicio local.
+                </p>
               </section>
             </div>
 

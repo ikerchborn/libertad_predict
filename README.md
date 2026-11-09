@@ -18,7 +18,7 @@ Planificador y recomendador turístico para el departamento de La Libertad, Per�
 - **Base local:** SQLite (`data/turismo.db`).
 - **Fuentes:** OpenStreetMap, snapshots locales, MINCETUR, MININTER, Open-Meteo y datasets regionales.
 
-La arquitectura backend es un monolito modular organizado por contexto (`places`, `scoring`, `weather`, `safety`, `events` y `pricing`). El frontend está en `frontend/src`; los detalles están en [ESTRUCTURA_DEL_SISTEMA.md](./ESTRUCTURA_DEL_SISTEMA.md) y [docs/architecture.md](./architecture.md).
+La arquitectura backend es un monolito modular organizado por contexto (`places`, `scoring`, `weather`, `safety`, `events` y `pricing`). El frontend está en `frontend/src`; los detalles están en [ESTRUCTURA_DEL_SISTEMA.md](./ESTRUCTURA_DEL_SISTEMA.md) y [architecture.md](./architecture.md).
 
 ## Inicio rápido
 

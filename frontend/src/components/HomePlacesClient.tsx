@@ -87,13 +87,7 @@ function getLegId(index: number): string {
 function getUsefulLandmarkHint(stop: string, hint?: string): string | undefined {
   if (!hint || /sin referencia física publicada/i.test(hint)) return undefined;
   let conciseHint = hint
-    .replace(/\[([^\]]*)\]/g, (_match, contents: string, offset: number, source: string) => {
-      const precedingText = source.slice(0, offset).trimEnd();
-      return precedingText &&
-        contents.trim().toLowerCase().startsWith(precedingText.toLowerCase())
-        ? ""
-        : contents;
-    })
+    .replace(/\[[^\]]*\]/g, "")
     .replace(/\s*\(referencial\)/gi, "")
     .split(/;\s*(?:confirma|referencia aproximada|punto referencial)/i)[0]
     .trim();
@@ -844,7 +838,7 @@ export function HomePlacesClient({
           total +
           (step.transit.vehicleType === "caminata"
             ? 0
-            : step.transit.estimatedMinutes),
+            : step.transit.estimatedMinutes + step.transit.waitMinutes),
         0
       ),
     [dayTransitSteps]
@@ -1534,7 +1528,7 @@ export function HomePlacesClient({
                     </span>
                     <p className="mt-0.5 text-sm font-extrabold text-adobe-dark">
                       ~{routeStats?.min ?? estimatedTransitMinutes + estimatedWalkingMinutes} min
-                      <span className="ml-1 font-normal text-adobe-muted">sin esperas</span>
+                      <span className="ml-1 font-normal text-adobe-muted">incluye esperas estimadas</span>
                     </p>
                   </div>
 
@@ -1767,11 +1761,6 @@ export function HomePlacesClient({
                     </button>
                   )}
                 </div>
-                {routeStats && routeStats.min >= 90 && (
-                  <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-950">
-                    <b>Tiempo total estimado:</b> incluye caminatas, transporte y esperas medias.
-                  </div>
-                )}
                 {longDistanceSteps.length > 0 && (
                     <div className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-3 text-xs leading-relaxed text-orange-950">
                       <p className="font-bold">Excursión larga fuera del área urbana</p>
@@ -1792,7 +1781,7 @@ export function HomePlacesClient({
                         })}
                       </p>
                       <p className="mt-1 font-semibold">
-                        Tiempo de transporte público estimado para este día: ~{estimatedTransitMinutes} min, sin contar esperas. Para excursiones fuera de ciudad, confirma horarios y retorno antes de salir.
+                        Transporte público estimado: ~{estimatedTransitMinutes} min, incluidas esperas medias. Para excursiones fuera de ciudad, confirma horarios y retorno antes de salir.
                       </p>
                     </div>
                 )}
@@ -1965,6 +1954,7 @@ export function HomePlacesClient({
                             {transit && (
                               <article
                                 id={`transit-leg-${legId}`}
+                                onClick={() => setSelectedLegId(legId)}
                                 onMouseEnter={() => setSelectedLegId(legId)}
                                 onFocusCapture={() => setSelectedLegId(legId)}
                                 className={`mx-3 my-1.5 p-3 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs shadow-2xs transition ${
@@ -2091,12 +2081,9 @@ export function HomePlacesClient({
                                         </>
                                       )}
                                     </div>
-                                    {transit.vehicleType !== "caminata" &&
-                                      (transit.vehicleType !== "taxi" || transit.warning) && (
+                                    {transit.vehicleType === "taxi" && transit.warning && (
                                       <p className="mt-1.5 text-[10px] text-amber-800/80">
-                                        {transit.vehicleType === "taxi"
-                                          ? transit.warning
-                                          : "Paraderos sugeridos; confirma el destino con el cobrador al subir."}
+                                        {transit.warning}
                                       </p>
                                     )}
                                     {alternatives.length > 1 && (

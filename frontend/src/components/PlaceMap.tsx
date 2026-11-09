@@ -67,14 +67,8 @@ export default function PlaceMap({
   const onSelectLegRef = useRef(onSelectLeg);
   const onSelectTransitRouteRef = useRef(onSelectTransitRoute);
   const onSelectPlaceRef = useRef(onSelectPlace);
-  const hiddenRouteKeysRef = useRef<Set<string>>(new Set());
   const [mapError, setMapError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [hiddenRouteKeys, setHiddenRouteKeys] = useState<Set<string>>(
-    () => new Set()
-  );
-  const [showItineraryMarkers, setShowItineraryMarkers] = useState(true);
-  const [isLegendOpen, setIsLegendOpen] = useState(false);
 
   useEffect(() => {
     onSelectLegRef.current = onSelectLeg;
@@ -87,90 +81,6 @@ export default function PlaceMap({
   useEffect(() => {
     onSelectPlaceRef.current = onSelectPlace;
   }, [onSelectPlace]);
-  const routeOptions = routeSegments.reduce<
-    Array<{
-      key: string;
-      label: string;
-      isTransit: boolean;
-      legId?: string;
-      tripLabel?: string;
-      estimatedMinutes?: number;
-      waitMinutes?: number;
-      farePen?: number;
-      fareRangePen?: [number, number];
-      routeColor?: string;
-      routeCode?: string;
-      companyName?: string;
-      badgeColor?: string;
-      textColor?: string;
-      vehicleType?: MapRouteSegment['vehicleType'];
-      routeGeometryVerified?: boolean;
-    }>
-  >((routes, segment, index) => {
-    const key = segment.routeId ?? segment.routeColor ?? `segment-${index}`;
-    const shortLabel =
-      segment.kind === 'transit'
-        ? segment.label.split(':')[0]
-        : segment.label;
-    const existing = routes.find((route) => route.key === key);
-    if (existing) {
-      if (segment.kind === 'transit' && !existing.isTransit) {
-        existing.label = shortLabel;
-        existing.isTransit = true;
-        existing.legId = segment.legId;
-        existing.estimatedMinutes = segment.estimatedMinutes;
-        existing.waitMinutes = segment.waitMinutes;
-        existing.farePen = segment.farePen;
-        existing.fareRangePen = segment.fareRangePen;
-        existing.routeColor = segment.routeColor;
-        existing.routeCode = segment.routeCode;
-        existing.companyName = segment.companyName;
-        existing.badgeColor = segment.badgeColor;
-        existing.textColor = segment.textColor;
-        existing.vehicleType = segment.vehicleType;
-        existing.routeGeometryVerified = segment.routeGeometryVerified;
-      } else if (segment.kind === 'transit') {
-        existing.estimatedMinutes =
-          (existing.estimatedMinutes ?? 0) + (segment.estimatedMinutes ?? 0);
-        existing.waitMinutes =
-          (existing.waitMinutes ?? 0) + (segment.waitMinutes ?? 0);
-        existing.routeGeometryVerified =
-          existing.routeGeometryVerified === true &&
-          segment.routeGeometryVerified === true;
-      }
-      return routes;
-    }
-    routes.push({
-      key,
-      label: shortLabel,
-      isTransit: segment.kind === 'transit',
-      legId: segment.legId,
-      tripLabel: segment.tripLabel,
-      estimatedMinutes: segment.estimatedMinutes,
-      waitMinutes: segment.waitMinutes,
-      farePen: segment.farePen,
-      fareRangePen: segment.fareRangePen,
-      routeColor: segment.routeColor,
-      routeCode: segment.routeCode,
-      companyName: segment.companyName,
-      badgeColor: segment.badgeColor,
-      textColor: segment.textColor,
-      vehicleType: segment.vehicleType,
-      routeGeometryVerified: segment.routeGeometryVerified,
-    });
-    return routes;
-  }, []);
-
-  const toggleRoute = (key: string) => {
-    setHiddenRouteKeys((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      hiddenRouteKeysRef.current = next;
-      return next;
-    });
-  };
-
   useEffect(() => {
     let isMounted = true;
     const routeLayers = new Map<string, LayerGroup>();
@@ -611,9 +521,7 @@ export default function PlaceMap({
           }
           segment.coordinates.forEach(([lat, lon]) => bounds.extend(L.latLng(lat, lon)));
         });
-        routeLayers.forEach((layer, key) => {
-          if (!hiddenRouteKeysRef.current.has(key)) layer.addTo(map);
-        });
+        routeLayers.forEach((layer) => layer.addTo(map));
       } else if (routePolyline && routePolyline.length > 1) {
         L.polyline(routePolyline, {
           color: '#0D9488',
@@ -693,23 +601,6 @@ export default function PlaceMap({
   }, [selectedLegId, routeSegments]);
 
   useEffect(() => {
-    const map = mapInstanceRef.current;
-    const markers = itineraryMarkersLayerRef.current;
-    if (!map || !markers) return;
-    if (showItineraryMarkers) markers.addTo(map);
-    else map.removeLayer(markers);
-  }, [showItineraryMarkers]);
-
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
-    routeLayersRef.current.forEach((layer, key) => {
-      if (hiddenRouteKeys.has(key)) map.removeLayer(layer);
-      else layer.addTo(map);
-    });
-  }, [hiddenRouteKeys]);
-
-  useEffect(() => {
     const timer = window.setTimeout(() => {
       mapInstanceRef.current?.invalidateSize({ pan: false });
     }, 100);
@@ -776,8 +667,7 @@ export default function PlaceMap({
     <div
       className={
         `map-shell ${isExpanded ? 'map-shell-expanded' : ''} ${
-        showItineraryMarkers ? '' : 'itinerary-markers-hidden'
-        } ${simplified ? 'map-shell-simplified' : ''} ${
+        simplified ? 'map-shell-simplified' : ''} ${
         isExpanded
           ? 'fixed inset-0 z-[1200] bg-black/45'
           : 'relative z-0 isolate w-full overflow-hidden rounded-2xl border border-adobe-border'
@@ -785,74 +675,6 @@ export default function PlaceMap({
       }
     >
       {mapContent}
-      {routeOptions.length > 0 && (
-        <>
-          <button
-            type="button"
-            className="map-route-legend-toggle absolute bottom-3 left-3 z-[1000] rounded-xl border border-white/80 bg-white/95 px-3 py-2 text-[11px] font-bold text-adobe-dark shadow-lg"
-            aria-expanded={isLegendOpen}
-            onClick={() => setIsLegendOpen((open) => !open)}
-          >
-            {isLegendOpen ? 'Ocultar legs' : `Legs del itinerario (${routeOptions.length})`}
-          </button>
-          {isLegendOpen && (
-        <div className="map-route-controls absolute bottom-14 left-3 z-[1000] max-w-[min(92%,420px)] rounded-xl border border-white/80 bg-white/95 px-3 py-2 text-[11px] shadow-lg">
-          <div className="mb-1 font-bold text-adobe-dark">Mostrar u ocultar un tramo</div>
-          <div className="map-route-options">
-            <label className="map-route-option">
-              <input
-                type="checkbox"
-                checked={showItineraryMarkers}
-                onChange={() => setShowItineraryMarkers((visible) => !visible)}
-                aria-label={`${showItineraryMarkers ? 'Ocultar' : 'Mostrar'} números de paradas`}
-              />
-              <span className="map-route-swatch map-route-stop-swatch" aria-hidden="true">1</span>
-              <span className="map-route-option-label">
-                <strong>Paradas</strong>
-                <span>Números del itinerario</span>
-              </span>
-            </label>
-            {routeOptions.map((route, index) => {
-              const isVisible = !hiddenRouteKeys.has(route.key);
-              return (
-                <label
-                  key={route.key}
-                  className={`map-route-option ${isVisible ? '' : 'is-hidden'}`}
-                  title={`${isVisible ? 'Ocultar' : 'Mostrar'} ${route.label}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isVisible}
-                    onChange={() => toggleRoute(route.key)}
-                    aria-label={`${isVisible ? 'Ocultar' : 'Mostrar'} tramo ${index + 1}: ${route.label}`}
-                  />
-                  <span
-                    className="map-route-swatch"
-                    style={{ background: route.routeColor ?? '#D97706' }}
-                    aria-hidden="true"
-                  />
-                  <span className="map-route-option-label">
-                    <strong>{route.legId ? `Leg ${route.legId}` : route.tripLabel || `Trayecto ${index + 1}`}</strong>
-                    <span>
-                      {route.estimatedMinutes != null
-                      ? `${route.isTransit ? 'transporte' : 'a pie'} ~${route.estimatedMinutes + (route.waitMinutes ?? 0)} min${route.waitMinutes ? ` (incluye ~${route.waitMinutes} min de espera)` : ''} · `
-                        : ''}
-                      {route.farePen != null
-                        ? route.fareRangePen
-                          ? `S/ ${route.fareRangePen[0].toFixed(2)}–${route.fareRangePen[1].toFixed(2)} · `
-                          : `S/ ${route.farePen.toFixed(2)} · `
-                        : ''}
-                    {route.label}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-          )}
-        </>
-      )}
       {mapError && (
         <div className="absolute left-3 top-14 z-[1000] max-w-xs rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-[11px] text-orange-900 shadow">
           {mapError} Las líneas de recorrido siguen disponibles cuando hay coordenadas.

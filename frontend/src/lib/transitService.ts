@@ -122,8 +122,8 @@ const truxdiCandidatesCache = new Map<
   string,
   Array<{ transit: TransitOption; totalEstimatedMinutes: number }>
 >();
-const MAX_URBAN_WALK_TO_STOP_KM = 1;
-const MAX_UNVERIFIED_WALK_TO_STOP_KM = 0.75;
+const MAX_URBAN_WALK_TO_STOP_KM = 0.8;
+const MAX_UNVERIFIED_WALK_TO_STOP_KM = 0.8;
 
 export interface TransitOption {
   code: string;
@@ -508,13 +508,7 @@ function getRouteGeometry(
 function cleanTransitCopy(value?: string): string | undefined {
   if (!value) return undefined;
   const cleaned = value
-    .replace(/\[([^\]]*)\]/g, (_match, contents: string, offset: number, source: string) => {
-      const precedingText = source.slice(0, offset).trimEnd();
-      return precedingText &&
-        contents.trim().toLowerCase().startsWith(precedingText.toLowerCase())
-        ? ''
-        : contents;
-    })
+    .replace(/\[[^\]]*\]/g, '')
     .replace(/\s*\(referencial\)/gi, '')
     .replace(/\s*;\s*(?:referencia aproximada|punto referencial|sin referencia física publicada|confirma\b).*$/i, '')
     .replace(/\s+/g, ' ')
@@ -1223,7 +1217,7 @@ export function getTransitBetweenPlaces(
       getDirectTaxiOption(
         origin,
         destination,
-        'El paradero queda a más de 1 km a pie o el acceso no se pudo validar; taxi directo recomendado.'
+        'El paradero queda a más de 800 m a pie o el acceso no se pudo validar; taxi directo recomendado.'
       )
     );
   }
@@ -1307,7 +1301,7 @@ async function getFallbackTransitWithAccessLimit(
         getDirectTaxiOption(
           origin,
           destination,
-          'El paradero queda a más de 1 km a pie o el acceso no se pudo validar; taxi directo recomendado.'
+          'El paradero queda a más de 800 m a pie o el acceso no se pudo validar; taxi directo recomendado.'
         )
       )
     : transit;

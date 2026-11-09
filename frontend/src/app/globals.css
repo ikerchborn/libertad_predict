@@ -35,7 +35,7 @@
 }
 
 .map-shell .route-endpoint-pin.map-route-muted {
-  opacity: 0.2 !important;
+  display: none !important;
 }
 
 .map-shell .route-endpoint-pin > div {
@@ -54,24 +54,10 @@
   white-space: nowrap;
 }
 
-.map-route-legend-toggle {
-  max-width: min(92%, 18rem);
-}
-
-.map-shell.itinerary-markers-hidden .custom-order-pin {
-  display: none !important;
-}
-
 .map-shell .leaflet-pane,
 .map-shell .leaflet-top,
 .map-shell .leaflet-bottom {
   z-index: 1;
-}
-
-.map-shell > .absolute.bottom-3 {
-  max-height: min(45%, 13rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .map-shell-expanded {

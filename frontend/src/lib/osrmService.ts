@@ -1,3 +1,4 @@
+/** Result of an OSRM request; fallback coordinates are direct connectors, not street geometry. */
 export interface OsrmRouteResult {
   coordinates: [number, number][]; // [lat, lon][] for Leaflet
   distanceKm: number;
@@ -9,6 +10,12 @@ export interface OsrmRouteResult {
 /**
  * Fetches routing geometry from public OSRM.
  * A fallback is only an approximate connector and must not be presented as street guidance.
+ *
+ * Invalid waypoint input returns `null`. Network, timeout, HTTP, or payload failures return
+ * an explicitly marked approximate connector so callers can preserve the itinerary display.
+ *
+ * @param waypoints - At least two `[latitude, longitude]` points.
+ * @param mode - Road profile to request; defaults to driving.
  */
 export async function fetchOsrmRoute(
   waypoints: [number, number][], // [lat, lon][]

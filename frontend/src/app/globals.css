@@ -11,6 +11,18 @@
   position: relative;
 }
 
+.map-shell > .map-content {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.map-shell .map-canvas {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 .map-shell .leaflet-tile {
   filter: grayscale(0.7) saturate(0.72);
 }

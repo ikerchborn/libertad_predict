@@ -1,7 +1,13 @@
+/** Browser-side HTTP client for place discovery, details, nearby data, and scores. */
 import { CalendarResponse, NearbyPlace, Place, PlaceDetail, PlaceKind, ScoreDetail } from "./types";
 
 const API_BASE_URL = "/api";
 
+/**
+ * Fetches places for the catalog using the supplied optional filters and pagination.
+ *
+ * @throws {Error} When the API responds with a non-success status.
+ */
 export async function fetchPlaces(params?: {
   kind?: PlaceKind;
   category?: string;
@@ -28,6 +34,12 @@ export async function fetchPlaces(params?: {
   return res.json();
 }
 
+/**
+ * Fetches one place and its details.
+ *
+ * @returns `null` when the API reports that the place does not exist.
+ * @throws {Error} For other non-success responses.
+ */
 export async function fetchPlaceById(placeId: number, queryDate?: string): Promise<PlaceDetail | null> {
   const query = new URLSearchParams();
   if (queryDate) query.set("query_date", queryDate);
@@ -40,6 +52,11 @@ export async function fetchPlaceById(placeId: number, queryDate?: string): Promi
   return res.json();
 }
 
+/**
+ * Fetches nearby places of the requested kind.
+ *
+ * A non-success HTTP response is treated as an empty result; network errors still reject.
+ */
 export async function fetchNearbyPlaces(
   placeId: number,
   kind: "lodging" | "food" | "activity",
@@ -54,6 +71,7 @@ export async function fetchNearbyPlaces(
   return res.json();
 }
 
+/** Fetches the score and factor breakdown for a place on one date. */
 export async function fetchScores(
   placeId: number,
   dateStr: string
@@ -69,6 +87,7 @@ export async function fetchScores(
   return res.json();
 }
 
+/** Fetches the calendar score series for a place and inclusive date window. */
 export async function fetchCalendar(
   placeId: number,
   fromDate: string,

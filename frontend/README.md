@@ -10,6 +10,7 @@ Desde este directorio:
 npm install
 npm run dev
 npm run lint
+npm run test
 npm run build
 ```
 
@@ -19,7 +20,15 @@ El servidor de desarrollo se publica normalmente en `http://localhost:3000`. La 
 
 - `src/components/HomePlacesClient.tsx` coordina el día activo, lugares seleccionados, fichas y cálculo de segmentos.
 - `src/components/PlaceMap.tsx` dibuja el mapa Leaflet, los marcadores de catálogo y de itinerario, tramos OSRM/transporte y controles de vista.
-- `src/lib/transitService.ts` resuelve opciones de transporte y accesos a paraderos.
+- `src/lib/transitService.ts` conserva la API pública estable del servicio multimodal. Su implementación está separada por responsabilidad:
+  - `src/lib/transitTypes.ts`: contratos compartidos de catálogo y opciones de viaje.
+  - `src/lib/transitPolicy.ts`: umbral de acceso peatonal y reglas derivadas.
+  - `src/lib/transitCatalogData.ts` y `src/lib/transitCatalog.ts`: carga/índices del catálogo, normalización de paraderos y rutas fijas.
+  - `src/lib/transitTruxdi.ts`: búsqueda de servicios Truxdi y validación de accesos a paraderos.
+  - `src/lib/transitFallbacks.ts`: caminatas internas, rutas regionales de respaldo y tarifa estimada de taxi.
+  - `src/lib/transitOptionMetadata.ts`: nombres comerciales, colores, limpieza de etiquetas e hitos de paradero.
+  - `src/lib/transitGeometry.ts`: caché de geometrías peatonales y medición de polilíneas.
+- `src/lib/transitService.test.ts` verifica los contratos públicos de límite peatonal, estimación de taxi, nombres de paradero y resolución de trayectos cortos a pie.
 - `src/lib/osrmService.ts` obtiene geometría de caminar o conducir; la conexión directa de respaldo es aproximada.
 - `src/hooks/useTripCache.ts` persiste viajes y evita duplicar una parada en el mismo día.
 - `src/app/globals.css` adapta el lienzo Leaflet a sus contenedores y define los estados visuales de los marcadores.

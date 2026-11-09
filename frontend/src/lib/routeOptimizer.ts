@@ -1,7 +1,10 @@
+/** Geographic distance and bounded day-itinerary optimization helpers. */
 import type { Place } from '@/lib/types';
 
+/** Largest itinerary accepted by the quadratic route optimizer. */
 export const MAX_OPTIMIZABLE_STOPS = 8;
 
+/** Calculates great-circle distance between two latitude/longitude coordinates in kilometers. */
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -17,8 +20,13 @@ export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: numb
 }
 
 /**
- * Optimizes a day itinerary using Nearest Neighbour + 2-opt.
- * Pass a multimodal edge cost to optimize by travel time instead of straight-line distance.
+ * Orders a day's places using nearest-neighbor starts followed by 2-opt improvement.
+ *
+ * The optional hotel anchor is included as the start and end of the cost calculation but is
+ * not returned in the ordered places. By default, edges use straight-line distance; callers
+ * can supply a multimodal cost such as estimated travel minutes.
+ *
+ * @throws {RangeError} When the itinerary contains more than `MAX_OPTIMIZABLE_STOPS`.
  */
 export function optimizeDayRoute(
   places: Place[],

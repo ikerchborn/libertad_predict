@@ -1,5 +1,11 @@
+/** URL validation helpers for external links and locally hosted place images. */
 const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "tel:"]);
 
+/**
+ * Accepts HTTP, HTTPS, and telephone links while rejecting unsupported protocols.
+ *
+ * Relative values resolve against a fixed local base; invalid values return `null`.
+ */
 export function getSafeExternalUrl(value: string | null | undefined): string | null {
   if (!value) return null;
 
@@ -12,6 +18,11 @@ export function getSafeExternalUrl(value: string | null | undefined): string | n
   }
 }
 
+/**
+ * Converts known filesystem image paths to public URLs and preserves HTTP(S) URLs.
+ *
+ * Unsupported or empty values return `null`.
+ */
 export function getLocalImageUrl(value: string | null | undefined): string | null {
   if (!value) return null;
   if (value.startsWith("/images/")) return value;

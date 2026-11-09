@@ -1,3 +1,4 @@
+/** Contract tests for OSRM routing results, validation, timeout, and approximate fallback. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchOsrmRoute } from '@/lib/osrmService';
 

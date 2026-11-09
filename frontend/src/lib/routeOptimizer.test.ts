@@ -1,3 +1,4 @@
+/** Behavioral tests for route ordering, anchors, custom costs, and optimizer limits. */
 import { describe, expect, it } from 'vitest';
 import type { Place } from '@/lib/types';
 import {

@@ -11,7 +11,7 @@ export function Footer() {
           </span>
         </div>
         <p className="text-center md:text-right text-xs">
-          &copy; 2026 La Libertad Predict &bull; Motor de decisiones para el turismo regional.
+          &copy; 2026 La Libertad Predict &bull;
           {" "}Fuentes: SENAMHI, MTC, IMARPE, Open-Meteo y{" "}
           <a
             href="https://www.openstreetmap.org/copyright"

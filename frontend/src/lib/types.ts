@@ -1,7 +1,20 @@
+/** Shared frontend contracts for place catalog data, recommendations, reviews, and scores. */
+
+/** Broad catalog category used by filters and API payloads. */
 export type PlaceCategory = "attraction" | "hotel" | "restaurant";
+
+/** UI-facing classification that distinguishes services beyond the broad catalog category. */
 export type PlaceKind = "attraction" | "lodging" | "food" | "activity" | "unclassified";
+
+/** Geographic context used to adapt recommendations and travel guidance. */
 export type CoastType = "inland" | "coastal";
 
+/**
+ * Normalized place record shared by the API, catalog, map, and itinerary.
+ *
+ * API-owned core properties are required even when their value is unknown (`null`);
+ * optional properties are enrichments supplied only by some data sources.
+ */
 export interface Place {
   id: number;
   osm_id: number;
@@ -15,12 +28,14 @@ export interface Place {
   score: number | null;
   confidence: number | null;
 
-  // Differentiated scores
+  /** Convenience score from the recommendation pipeline, when available. */
   convenience_score?: number | null;
+  /** Overall recommendation score, when available. */
   recommendation_score?: number | null;
+  /** Human-readable explanation of the recommendation, when available. */
   recommendation_summary?: string | null;
 
-  // Commercial metadata
+  /** Public map, website, contact, and pricing references when present in the source. */
   maps_url?: string | null;
   website?: string | null;
   phone?: string | null;
@@ -43,9 +58,10 @@ export interface Place {
   wave_height_m?: number | null;
   wave_period_s?: number | null;
 
-  // Dynamic mapped fields for UI
+  /** UI enrichment used to group or personalize place suggestions. */
   zone?: "costa" | "valle" | "sierra";
   profile?: "surfer" | "culture" | "family";
+  /** Presentation enrichment; these fields are not required in the API record. */
   image?: string;
   description?: string;
   bestTime?: string;
@@ -54,14 +70,16 @@ export interface Place {
   crowdText?: string;
 }
 
+/** Commercial offer captured for a place; prices use the currency named by `currency`. */
 export interface Offer {
-  kind: string; // dish | room | tour
+  kind: string;
   name: string;
   price: number;
   currency: string;
   captured_at: string;
 }
 
+/** One weighted input and its human-readable contribution to a recommendation. */
 export interface RecommendationFactor {
   name: string;
   score: number;
@@ -70,6 +88,7 @@ export interface RecommendationFactor {
   explanation: string;
 }
 
+/** A nearby candidate paired with its distance and recommendation explanation. */
 export interface NearbyPlace {
   place: Place;
   distance_km: number;
@@ -78,6 +97,7 @@ export interface NearbyPlace {
   breakdown: RecommendationFactor[];
 }
 
+/** User review associated with a place, optionally including relative publication time. */
 export interface PlaceReview {
   author_name: string;
   rating: number;
@@ -85,12 +105,14 @@ export interface PlaceReview {
   relative_time?: string | null;
 }
 
+/** Aggregated count and share for one reported incident category. */
 export interface CrimeIncidentSummary {
   name: string;
   count: number;
   percentage: number;
 }
 
+/** Place-specific safety assessment with incident totals, time-of-day context, and guidance. */
 export interface PlaceSafetyReport {
   score: number;
   risk_level: string;
@@ -118,6 +140,7 @@ export interface PlaceSafetyReport {
   evaluated_at: string;
 }
 
+/** Extended place payload returned by detail views; all additions are optional enrichments. */
 export interface PlaceDetail extends Place {
   opening_hours?: string | null;
   menu_url?: string | null;
@@ -129,6 +152,7 @@ export interface PlaceDetail extends Place {
   recommendation_breakdown?: RecommendationFactor[];
 }
 
+/** Provenance and weighted contribution for one factor in a computed score. */
 export interface FactorBreakdown {
   name: string;
   value: number;
@@ -139,6 +163,7 @@ export interface FactorBreakdown {
   explanation: string;
 }
 
+/** Score and factor breakdown for one place on one calendar date. */
 export interface CalendarDay {
   date: string;
   score: number;
@@ -146,6 +171,7 @@ export interface CalendarDay {
   breakdown: FactorBreakdown[];
 }
 
+/** Date window and per-day scores returned by the calendar endpoint. */
 export interface CalendarResponse {
   place_id: number;
   date_from: string;
@@ -153,6 +179,7 @@ export interface CalendarResponse {
   days: CalendarDay[];
 }
 
+/** Detailed score result including calculation time and the weights version used. */
 export interface ScoreDetail {
   place_id: number;
   date: string;
@@ -163,6 +190,7 @@ export interface ScoreDetail {
   weights_version: string;
 }
 
+/** Visual tokens for one heatmap score band. */
 export interface HeatmapClassification {
   level: number;
   name: string;
@@ -173,6 +201,7 @@ export interface HeatmapClassification {
   badgeClass: string;
 }
 
+/** Ordered score bands used by heatmap badges; ranges are inclusive as labeled. */
 export const HEATMAP_STEPS: HeatmapClassification[] = [
   {
     level: 1,
@@ -221,6 +250,7 @@ export const HEATMAP_STEPS: HeatmapClassification[] = [
   },
 ];
 
+/** Curated presentation copy and image paths for selected featured place IDs. */
 export const PLACE_IMAGES: Record<
   number,
   { image: string; description: string; bestTime: string }
@@ -282,6 +312,14 @@ export const PLACE_IMAGES: Record<
   },
 };
 
+/**
+ * Maps a 0–100 score to its heatmap label and visual tokens.
+ *
+ * Thresholds are 0–39, 40–54, 55–69, 70–84, and 85–100.
+ *
+ * @param score - Place score on the same scale used by `HEATMAP_STEPS`.
+ * @returns The matching heatmap band.
+ */
 export function getHeatmapClassification(score: number): HeatmapClassification {
   if (score < 40) return HEATMAP_STEPS[0];
   if (score < 55) return HEATMAP_STEPS[1];

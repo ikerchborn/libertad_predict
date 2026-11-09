@@ -1,6 +1,8 @@
 /**
- * Server-side API helpers — only called from Server Components (never bundled in client JS).
- * Uses INTERNAL_API_URL (no NEXT_PUBLIC_) so the URL never leaks to the browser.
+ * Server-only data access for Next.js Server Components.
+ *
+ * Uses `INTERNAL_API_URL` and local catalog snapshots as fallbacks; do not import this module
+ * from client components because its endpoint configuration is server-only.
  */
 import { CalendarResponse, NearbyPlace, Place, PlaceDetail } from "./types";
 import snapshotFallbackData from "@/data/places_snapshot.json";
@@ -34,6 +36,7 @@ type SnapshotPlace = {
   source?: string;
 };
 
+/** Combines the bundled snapshot and maintained additions into normalized place records. */
 function getFallbackPlaces(): Place[] {
   try {
     const snapshot = snapshotFallbackData as unknown as { places?: SnapshotPlace[] };
@@ -88,6 +91,10 @@ function getFallbackPlaces(): Place[] {
   return [];
 }
 
+/**
+ * Fetches the catalog from the local API, falling back to bundled snapshots when the request
+ * fails or the API returns no places.
+ */
 export async function serverFetchPlaces(params: {
   date: string;
   kind?: string;
@@ -116,6 +123,11 @@ export async function serverFetchPlaces(params: {
   return getFallbackPlaces();
 }
 
+/**
+ * Fetches a place detail record and falls back to the bundled catalog when the API is unavailable.
+ *
+ * @returns `null` when the place is absent from both the API and local fallback.
+ */
 export async function serverFetchPlace(placeId: number, date?: string): Promise<PlaceDetail | null> {
   const q = new URLSearchParams();
   if (date) q.set("query_date", date);
@@ -131,6 +143,7 @@ export async function serverFetchPlace(placeId: number, date?: string): Promise<
   return fallback ? (fallback as PlaceDetail) : null;
 }
 
+/** Fetches nearby records; non-success HTTP responses produce an empty list. */
 export async function serverFetchNearby(
   placeId: number,
   kind: "lodging" | "food" | "activity" = "food",
@@ -143,6 +156,7 @@ export async function serverFetchNearby(
   return res.json();
 }
 
+/** Fetches a score calendar; non-success HTTP responses produce `null`. */
 export async function serverFetchCalendar(
   placeId: number,
   from: string,
@@ -159,12 +173,12 @@ export async function serverFetchCalendar(
   return res.json();
 }
 
-/** Returns today's date as YYYY-MM-DD in the server's local timezone */
+/** Returns the current UTC date as `YYYY-MM-DD`. */
 export function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Returns the forecast window: today + 15 days */
+/** Returns the UTC date window from today through 15 days later, inclusive. */
 export function forecastRange(): { from: string; to: string } {
   const today = new Date();
   const to = new Date(today);

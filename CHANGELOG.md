@@ -6,6 +6,46 @@ registra cambios pequeños de formato.
 
 ## 2026-11-09
 
+### TSDoc y responsabilidades en `frontend/src/lib`
+
+- Se revisaron los módulos TypeScript de la biblioteca frontend, incluidos
+  `transportImages.ts`, `server-api.ts`, `routeOptimizer.ts`, clientes HTTP,
+  URLs seguras y servicios de OSRM/transporte.
+- Se añadieron cabeceras de responsabilidad y TSDoc a contratos/exportaciones
+  públicas para explicar límites, fallbacks, efectos y condiciones de retorno;
+  las suites `.test.ts` describen su cobertura en el propio archivo.
+- Build de producción pasó, Vitest 11/11 y ESLint sin errores (reportó 19
+  advertencias).
+
+### TSDoc para los contratos compartidos del frontend
+
+- Se documentaron en el propio código todos los tipos, interfaces, constantes
+  y funciones exportados por `frontend/src/lib/types.ts`, incluyendo el contrato
+  de nulabilidad/enriquecimientos de `Place` y los umbrales de clasificación
+  del mapa de calor.
+- Validación: compilación TypeScript mediante `npm --prefix frontend run build`.
+
+### Separación del servicio multimodal por responsabilidades
+
+- Se dividió `transitService.ts` en módulos para tipos, política peatonal,
+  datos/normalización de catálogos, selección Truxdi, geometría, enriquecimiento
+  de fichas, rutas de respaldo y coordinación pública. `transitService.ts`
+  sigue siendo la fachada compatible, así que los consumidores existentes no
+  requieren cambios.
+- Los módulos de implementación quedan entre 13 y 429 líneas; se añadieron
+  TSDoc a contratos públicos y pruebas a las funciones expuestas.
+- Se documentó la arquitectura del servicio en `frontend/README.md`.
+- Validación: build de producción pasó; Vitest 11/11; ESLint sin errores
+  (19 advertencias existentes).
+
+### Corrección de altura del mapa Leaflet
+
+- Se hizo flexible el canvas para que aproveche toda la altura disponible del
+  panel y no deje una zona blanca debajo de los mosaicos.
+- Se mantiene la altura natural del mapa cuando el contenedor no está expandido.
+- Validación: build de producción y verificación en navegador a distintos
+  tamaños de ventana.
+
 ### Remediación de auditoría técnica y verificación integral
 
 - Se acotó la caché FastAPI por cantidad y bytes, se agruparon consultas de

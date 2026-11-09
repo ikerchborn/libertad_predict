@@ -1,7 +1,13 @@
+/** Matches transit service labels to the curated vehicle image catalog. */
 import images from "@/data/transport_images.json";
 
 type TransportImage = (typeof images)[number];
 
+/**
+ * Selects the best known vehicle image from the service name and optional route code.
+ *
+ * Unmatched services use the generic urban-transit image when it exists in the catalog.
+ */
 export function getTransportImage(serviceName: string, code?: string): TransportImage | null {
   const text = `${serviceName} ${code ?? ""}`.toLowerCase();
   if (text.includes("chicama") || text.includes("dorado")) return images.find((item) => item.id === "chicama-premium") ?? null;

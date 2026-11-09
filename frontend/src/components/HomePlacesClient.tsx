@@ -1143,6 +1143,11 @@ export function HomePlacesClient({
       <div>
         <Header
           onOpenTrips={() => setIsTripsDrawerOpen(true)}
+          onExplorePlaces={() => {
+            setPlannerView("explore");
+            setDisplayCount((count) => Math.max(count, 24));
+            setIsStarted(true);
+          }}
           showNavigation={trip.isStarted}
           planner={trip.isStarted ? {
             title: trip.title || `Viaje a ${trip.destination || "Trujillo"}`,
@@ -1385,7 +1390,6 @@ export function HomePlacesClient({
                   {initialPlaces.length}
                 </span>
               </button>
-              <Link href="/places"><Landmark />Lugares</Link>
               <span className="planner-sidebar-label planner-days-label">ITINERARIO</span>
               {trip.days.map((day, index) => (
                 <button
@@ -1425,7 +1429,6 @@ export function HomePlacesClient({
               >
                 Itinerario
               </button>
-              <Link href="/places">Lugares</Link>
             </nav>
             <div
               className={`planner-main ${
@@ -2821,8 +2824,8 @@ export function HomePlacesClient({
               ref={placesListRef}
               className="bg-white rounded-3xl border border-adobe-border p-5 sm:p-6 shadow-sm space-y-5"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-adobe-border/70 pb-4">
-                <div>
+              <div className="flex flex-col gap-3 border-b border-adobe-border/70 pb-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
                   <h2 className="text-lg font-display font-bold text-adobe-dark flex items-center gap-2">
                     <Landmark className="w-5 h-5 text-moche-600" />
                     <span>Catálogo de Lugares para Visitar ({filteredPlacesList.length})</span>
@@ -2831,25 +2834,25 @@ export function HomePlacesClient({
                     Explora el catálogo, guarda lugares en Por visitar o asígnalos a un día del viaje actual.
                   </p>
                 </div>
-                <span className="rounded-md border border-adobe-border bg-slate-50 px-2 py-1 font-mono text-[10px] text-adobe-muted">
-                  {trip.savedPlaces.length} guardados
-                </span>
-
-                {/* Zone Filter Dropdown */}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-adobe-muted font-semibold">Zona:</span>
-                  <select
-                    value={listZone}
-                    onChange={(e) => setListZone(e.target.value as "all" | "costa" | "valle" | "sierra")}
-                    className="bg-adobe-bg border border-adobe-border rounded-xl px-2.5 py-1.5 text-xs font-semibold text-adobe-dark focus:ring-2 focus:ring-moche-500 focus:outline-none cursor-pointer"
-                  >
-                    <option value="all">Toda la Región</option>
-                    <option value="costa">Balnearios (Huanchaco, Chicama)</option>
-                    <option value="valle">Valle Moche (Chan Chan, Moche)</option>
-                    <option value="sierra">Sierra (Otuzco, Huamachuco)</option>
-                  </select>
+                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                  <span className="rounded-md border border-adobe-border bg-slate-50 px-2 py-1 font-mono text-[10px] text-adobe-muted">
+                    {trip.savedPlaces.length} guardados
+                  </span>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-adobe-muted">
+                    <span>Zona:</span>
+                    <select
+                      value={listZone}
+                      onChange={(e) => setListZone(e.target.value as "all" | "costa" | "valle" | "sierra")}
+                      className="max-w-full cursor-pointer rounded-xl border border-adobe-border bg-adobe-bg px-2.5 py-1.5 text-xs font-semibold text-adobe-dark focus:outline-none focus:ring-2 focus:ring-moche-500"
+                    >
+                      <option value="all">Toda la Región</option>
+                      <option value="costa">Balnearios (Huanchaco, Chicama)</option>
+                      <option value="valle">Valle Moche (Chan Chan, Moche)</option>
+                      <option value="sierra">Sierra (Otuzco, Huamachuco)</option>
+                    </select>
+                  </label>
                 </div>
-                </div>
+              </div>
 
               {/* Category Filter Tabs */}
               <div className="planner-category-tabs flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -2962,19 +2965,19 @@ export function HomePlacesClient({
                     return (
                       <div
                         key={item.id}
-                        className="bg-white border border-adobe-border rounded-2xl p-3.5 sm:p-4 hover:border-moche-300 hover:shadow-2xs transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                        className="group flex min-w-0 flex-col gap-3 rounded-2xl border border-adobe-border bg-white p-3.5 transition hover:border-moche-300 hover:shadow-2xs sm:p-4"
                       >
                         {/* Left: Thumbnail & Details */}
-                        <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+                        <div className="flex min-w-0 items-start gap-3.5">
                           <img
                             src={imageSrc}
                             alt={item.name}
-                            className="w-16 h-16 sm:w-18 sm:h-18 rounded-xl object-cover bg-neutral-100 shrink-0 border border-adobe-border/60"
+                            className="h-16 w-16 shrink-0 rounded-xl border border-adobe-border/60 bg-neutral-100 object-cover sm:h-[4.5rem] sm:w-[4.5rem]"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = imgFallback;
                             }}
                           />
-                          <div className="min-w-0 space-y-1">
+                          <div className="min-w-0 flex-1 space-y-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-sm text-adobe-dark hover:text-moche-600 transition">
                                 <Link href={`/places/${item.id}`}>{item.name}</Link>
@@ -3035,7 +3038,7 @@ export function HomePlacesClient({
                         </div>
 
                         {/* Right: Actions */}
-                        <div className="flex flex-wrap items-center gap-2 self-end sm:self-center shrink-0 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-adobe-border/60">
+                        <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-2 border-t border-adobe-border/60 pt-2">
                           <Link
                             href={`/places/${item.id}`}
                             className="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-adobe-muted hover:text-adobe-dark hover:bg-adobe-bg transition"

@@ -16,6 +16,7 @@ import {
 interface HeaderProps {
   onOpenTrips?: () => void;
   onCreateTrip?: () => void;
+  onExplorePlaces?: () => void;
   savedTripsCount?: number;
   showNavigation?: boolean;
   planner?: {
@@ -34,6 +35,7 @@ interface HeaderProps {
 export function Header({
   onOpenTrips,
   onCreateTrip,
+  onExplorePlaces,
   savedTripsCount,
   showNavigation = false,
   planner,
@@ -51,11 +53,14 @@ export function Header({
         className="libertad-header fixed top-0 left-0 right-0 z-[100] border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-xs"
       >
       <div
-        className={`mx-auto flex min-h-14 max-w-[1600px] items-center gap-3 px-4 sm:px-6 ${
+        className={`${planner ? "planner-header-inner " : ""}mx-auto flex min-h-14 max-w-[1600px] items-center gap-3 px-4 sm:px-6 ${
           planner ? "flex-wrap justify-between py-2 xl:flex-nowrap" : "justify-between"
         }`}
       >
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+        <Link
+          href="/"
+          className={`${planner ? "planner-header-brand " : ""}flex shrink-0 items-center gap-2.5`}
+        >
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white">
             <Compass className="h-5 w-5" />
           </span>
@@ -64,10 +69,10 @@ export function Header({
           </span>
         </Link>
 
-        {planner && <span className="h-7 w-px shrink-0 bg-slate-200" aria-hidden="true" />}
+        {planner && <span className="planner-header-divider h-7 w-px shrink-0 bg-slate-200" aria-hidden="true" />}
 
         {planner && (
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+          <div className="planner-header-details flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
             {isEditingTitle ? (
               <form
                 className="flex min-w-0 items-center gap-1"
@@ -127,7 +132,7 @@ export function Header({
               className="inline-flex items-center gap-1 text-xs text-slate-600 hover:text-orange-700"
             >
               <CalendarDays className="h-3.5 w-3.5" />
-              {planner.dateRange}
+              <span>{planner.dateRange}</span>
             </button>
             <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">
               {planner.dayCount} d / {planner.nightCount} n
@@ -149,7 +154,7 @@ export function Header({
           </nav>
         )}
 
-        <div className="flex shrink-0 items-center gap-2">
+        <div className={`${planner ? "planner-header-actions " : ""}flex shrink-0 items-center gap-2`}>
           {planner && onToggleMap && (
             <button
               type="button"
@@ -159,6 +164,19 @@ export function Header({
             >
               {planner.mapVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               <span className="hidden sm:inline">{planner.mapVisible ? "Ocultar mapa" : "Mostrar mapa"}</span>
+            </button>
+          )}
+
+          {planner && onExplorePlaces && (
+            <button
+              type="button"
+              onClick={onExplorePlaces}
+              title="Explorar más lugares"
+              aria-label="Explorar más lugares"
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 px-2.5 text-xs font-semibold text-slate-700 transition hover:border-orange-200 hover:bg-orange-50"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Lugares</span>
             </button>
           )}
 
@@ -192,6 +210,6 @@ export function Header({
         </div>
       </div>
     </header>
-    <div className={planner ? "h-24 xl:h-14 shrink-0" : "h-14 shrink-0"} aria-hidden="true" />
+    <div className={planner ? "h-20 sm:h-24 xl:h-14 shrink-0" : "h-14 shrink-0"} aria-hidden="true" />
   </>);
 }

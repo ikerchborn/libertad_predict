@@ -13,6 +13,11 @@ registra cambios pequeños de formato.
 - Se corrigió la visualización del mapa en Explorar para móvil y tableta; los
   controles de navegación ya no quedan debajo del encabezado y el mapa conserva
   sus controles de Leaflet al abrirse y cerrarse en pantalla completa.
+- La opción «Lugares» se movió al encabezado como acceso «+ Lugares» a Explorar;
+  al usarla se muestran más resultados. Las tarjetas del catálogo ahora apilan
+  sus acciones para evitar comprimir los nombres en columnas estrechas.
+- Se compactó el encabezado móvil del viaje, se evitó que la navegación tape el
+  resumen y se quitó el acceso duplicado a Lugares del menú móvil.
 - Al iniciar un viaje desde la portada, el planificador abre desde el inicio de
   la página para evitar que el mapa quede fuera de vista en pantallas pequeñas.
 - Los tramos de transporte sin geometría propia solicitan ahora una ruta vial a

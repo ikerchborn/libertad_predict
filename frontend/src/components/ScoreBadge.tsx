@@ -32,7 +32,7 @@ export function ScoreBadge({ score, size = "md" }: ScoreBadgeProps) {
         className={`${step.badgeClass} px-4 py-2 rounded-2xl text-center inline-block shadow-sm`}
       >
         <div className="font-display text-3xl font-extrabold leading-none">
-          {step.name}
+          {Math.round(score)}
         </div>
         <div className="text-xs font-bold uppercase tracking-wider mt-1">
           {step.name}

@@ -30,6 +30,15 @@ export interface TripState {
 const STORAGE_MULTI_KEY = 'turismo_saved_trips_v2';
 const LEGACY_STORAGE_KEY = 'turismo_trip_itinerary_v1';
 
+const isoDateOffset = (offsetDays: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 export const createDefaultTrip = (destination = 'Trujillo', title?: string): TripState => {
   const idSuffix = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
   const now = Date.now();
@@ -40,14 +49,14 @@ export const createDefaultTrip = (destination = 'Trujillo', title?: string): Tri
     id: `trip_${idSuffix}`,
     title: title || `Viaje a ${destination}`,
     destination,
-    startDate: '2026-11-12',
-    endDate: '2026-11-16',
+    startDate: isoDateOffset(0),
+    endDate: isoDateOffset(4),
     isStarted: false,
     notes: '',
     savedPlaces: [],
     days: [
-      { id: day1Id, title: 'Día 1: Arqueología y Costa', date: '2026-11-12', places: [] },
-      { id: day2Id, title: 'Día 2: Cultura y Centro Histórico', date: '2026-11-13', places: [] },
+      { id: day1Id, title: 'Día 1: Arqueología y Costa', date: isoDateOffset(0), places: [] },
+      { id: day2Id, title: 'Día 2: Cultura y Centro Histórico', date: isoDateOffset(1), places: [] },
     ],
     activeDayId: day1Id,
     hotelAnchor: null,

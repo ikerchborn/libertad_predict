@@ -7,11 +7,11 @@ export function Footer() {
             L
           </div>
           <span className="font-display font-bold text-adobe-dark text-sm">
-            La Libertad Predict
+            LibertadGO
           </span>
         </div>
         <p className="text-center md:text-right text-xs">
-          &copy; 2026 La Libertad Predict &bull;
+          &copy; 2026 LibertadGO &bull;
           {" "}Fuentes: SENAMHI, MTC, IMARPE, Open-Meteo y{" "}
           <a
             href="https://www.openstreetmap.org/copyright"

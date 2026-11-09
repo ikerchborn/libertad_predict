@@ -211,6 +211,17 @@ export function HomePlacesClient({
     Number.isFinite(startTimestamp) && Number.isFinite(endTimestamp)
       ? Math.max(0, Math.round((endTimestamp - startTimestamp) / 86_400_000))
       : 0;
+  const firstAvailableDate = availableDates[0];
+  const lastAvailableDate = availableDates[availableDates.length - 1];
+  const dateError = !Number.isFinite(startTimestamp) || !Number.isFinite(endTimestamp)
+    ? "Elige la fecha de llegada y la de salida."
+    : endTimestamp < startTimestamp
+      ? "La salida no puede ser anterior a la llegada."
+      : firstAvailableDate && startDateInput < firstAvailableDate
+        ? `La llegada debe ser desde ${firstAvailableDate}.`
+        : lastAvailableDate && endDateInput > lastAvailableDate
+          ? `La salida debe ser hasta ${lastAvailableDate} (límite del pronóstico).`
+          : null;
   const [compactMode, setCompactMode] = useState(false);
   const [loadedForecast, setLoadedForecast] = useState<{
     date: string;
@@ -960,6 +971,7 @@ export function HomePlacesClient({
   // Handle starting planner from welcome screen
   const handleStartPlanning = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (dateError) return;
     const destination = destInput.trim() || "Trujillo";
     const enteredTitle = newTripTitleInput.trim();
     const defaultTitle = `Viaje a ${trip.destination || "Trujillo"}`;
@@ -974,6 +986,7 @@ export function HomePlacesClient({
       startDate: startDateInput.trim() || defaultStart,
       endDate: endDateInput.trim() || defaultEnd,
     });
+    setPlannerView("itinerary");
     setIsStarted(true);
   };
 
@@ -1227,11 +1240,12 @@ export function HomePlacesClient({
                 className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_14px_48px_rgba(15,23,42,0.08)] sm:p-7"
               >
                 <div className="space-y-1.5">
-                  <label className="block text-sm font-bold text-slate-800">
+                  <label htmlFor="trip-destination" className="block text-sm font-bold text-slate-800">
                     ¿A dónde quieres ir?
                   </label>
                   <div className="relative">
                     <input
+                      id="trip-destination"
                       type="text"
                       value={destInput}
                       onChange={(e) => setDestInput(e.target.value)}
@@ -1275,7 +1289,11 @@ export function HomePlacesClient({
                           value={startDateInput}
                           min={availableDates[0]}
                           max={availableDates[availableDates.length - 1]}
-                          onChange={(e) => setStartDateInput(e.target.value)}
+                          onChange={(e) => {
+                            const next = e.target.value;
+                            setStartDateInput(next);
+                            if (next && endDateInput && endDateInput < next) setEndDateInput(next);
+                          }}
                           className="w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-800 outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-100"
                         />
                       </div>
@@ -1299,9 +1317,15 @@ export function HomePlacesClient({
                   <span className="block text-[11px] text-slate-500">
                     Fechas dentro del pronóstico disponible ({availableDates[0]} – {availableDates[availableDates.length - 1]}).
                   </span>
-                  <div className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-600">
-                    {tripNights} noches · {tripNights + 1} días de viaje
-                  </div>
+                  {dateError ? (
+                    <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-xs font-semibold text-red-700">
+                      {dateError}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl bg-slate-50 px-3.5 py-2.5 text-xs font-semibold text-slate-600">
+                      {tripNights} noches · {tripNights + 1} días de viaje
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -1320,7 +1344,8 @@ export function HomePlacesClient({
 
                 <button
                   type="submit"
-                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-600 px-6 py-3.5 font-display text-sm font-bold text-white shadow-md shadow-orange-600/20 transition hover:bg-orange-700"
+                  disabled={Boolean(dateError)}
+                  className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-orange-600 px-6 py-3.5 font-display text-sm font-bold text-white shadow-md shadow-orange-600/20 transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Route className="h-4 w-4" />
                   <span>Crear mi itinerario</span>
@@ -1350,6 +1375,15 @@ export function HomePlacesClient({
                         return (
                           <div
                             key={st.id}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                switchTrip(st.id);
+                                setIsStarted(true);
+                              }
+                            }}
                             onClick={() => {
                               switchTrip(st.id);
                               setIsStarted(true);
@@ -1530,6 +1564,27 @@ export function HomePlacesClient({
                   Organiza tus visitas por día. Explora el catálogo para encontrar lugares y añádelos
                   directamente al día del viaje actual que prefieras.
                 </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlannerView("itinerary");
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-orange-700"
+                  >
+                    <Route className="h-3.5 w-3.5" />
+                    {trip.days.some((d) => d.places.length > 0) ? "Continuar mi itinerario" : "Empezar a armar mi itinerario"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openPlacesCatalog}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-adobe-border bg-white px-4 py-2 text-xs font-bold text-adobe-dark transition hover:bg-adobe-bg"
+                  >
+                    <Compass className="h-3.5 w-3.5" />
+                    Explorar lugares
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs leading-relaxed text-emerald-900">
@@ -1726,7 +1781,7 @@ export function HomePlacesClient({
             {/* Quick Services + Transit Budget Row (matching AI Studio experience) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {/* Card 1: Explorar Servicios */}
-              <section className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs flex flex-col justify-between">
+              <section className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs flex flex-col gap-3">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted block">
                     Explorar Servicios
@@ -1766,7 +1821,7 @@ export function HomePlacesClient({
                     <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
                       <Sparkles className="h-4 w-4" />
                     </span>
-                    <span className="text-xs font-bold text-slate-800">Actividades</span>
+                    <span className="text-[11px] font-bold text-slate-800">Actividades</span>
                   </button>
                 </div>
               </section>
@@ -1777,14 +1832,25 @@ export function HomePlacesClient({
                   <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted block">
                     Presupuesto Estimado de Transporte ({activeDayLabel.toUpperCase()})
                   </span>
-                  <div className="mt-1 font-display text-2xl font-extrabold leading-tight text-adobe-dark">
-                    {totalTransitFareRange[0] === totalTransitFareRange[1]
-                      ? `S/ ${totalTransitFareRange[0].toFixed(2)}`
-                      : `S/ ${totalTransitFareRange[0].toFixed(2)}–${totalTransitFareRange[1].toFixed(2)}`}
-                  </div>
-                  <p className="mt-0.5 text-xs text-adobe-muted">
-                    ~{routeStats?.min ?? estimatedTransitMinutes + estimatedWalkingMinutes} min de transporte y caminata, sin esperas.
-                  </p>
+                  {dayTransitSteps.length === 0 ? (
+                    <>
+                      <div className="mt-1 font-display text-2xl font-extrabold leading-tight text-adobe-muted">—</div>
+                      <p className="mt-0.5 text-xs text-adobe-muted">
+                        Agrega al menos 2 lugares a este día para calcular el costo y el tiempo de traslado.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-1 font-display text-2xl font-extrabold leading-tight text-adobe-dark">
+                        {totalTransitFareRange[0] === totalTransitFareRange[1]
+                          ? `S/ ${totalTransitFareRange[0].toFixed(2)}`
+                          : `S/ ${totalTransitFareRange[0].toFixed(2)}–${totalTransitFareRange[1].toFixed(2)}`}
+                      </div>
+                      <p className="mt-0.5 text-xs text-adobe-muted">
+                        ~{routeStats?.min ?? estimatedTransitMinutes + estimatedWalkingMinutes} min de transporte y caminata, sin esperas. No incluye entradas, comida ni hospedaje.
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-3 border-t border-adobe-border/70 pt-2.5">
@@ -1792,9 +1858,11 @@ export function HomePlacesClient({
                     Antes de subir, confirme el destino del letrero y la tarifa con el servicio local. Rutas y paraderos son referenciales.
                   </p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200/70">
-                      {dayTransitSteps.length} {dayTransitSteps.length === 1 ? "tramo calculado" : "tramos calculados"}
-                    </span>
+                    {dayTransitSteps.length > 0 && (
+                      <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200/70">
+                        {dayTransitSteps.length} {dayTransitSteps.length === 1 ? "tramo calculado" : "tramos calculados"}
+                      </span>
+                    )}
                     <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
                       Referencial
                     </span>
@@ -1945,6 +2013,9 @@ export function HomePlacesClient({
                       <span className="font-bold text-indigo-950 truncate">
                         Hotel Ancla: {trip.hotelAnchor.name}
                       </span>
+                      <span className="hidden text-[10px] font-medium text-indigo-700 sm:inline">
+                        · punto de partida de tus rutas
+                      </span>
                     </div>
                     <button
                       type="button"
@@ -1966,6 +2037,7 @@ export function HomePlacesClient({
                     type="button"
                     onClick={() => setCompactMode((mode) => !mode)}
                     aria-pressed={compactMode}
+                    title="Vista simplificada del mapa para usar durante el viaje, con menos detalles en pantalla"
                     className="rounded-xl border border-adobe-border bg-white px-3 py-1.5 text-xs font-bold text-adobe-dark hover:bg-adobe-bg"
                   >
                     {compactMode ? "Salir de Modo Viaje" : "Modo Viaje"}
@@ -2967,7 +3039,7 @@ export function HomePlacesClient({
               ref={placesListRef}
               className="bg-white rounded-3xl border border-adobe-border p-5 sm:p-6 shadow-sm space-y-5"
             >
-              <div className="flex flex-col gap-3 border-b border-adobe-border/70 pb-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-3 border-b border-adobe-border/70 pb-4">
                 <div className="min-w-0">
                   <h2 className="text-lg font-display font-bold text-adobe-dark flex items-center gap-2">
                     <Landmark className="w-5 h-5 text-moche-600" />
@@ -2977,7 +3049,7 @@ export function HomePlacesClient({
                     Explora el catálogo, guarda lugares en Por visitar o asígnalos a un día del viaje actual.
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-md border border-adobe-border bg-slate-50 px-2 py-1 font-mono text-[10px] text-adobe-muted">
                     {trip.savedPlaces.length} guardados
                   </span>
@@ -3074,6 +3146,7 @@ export function HomePlacesClient({
                   <button
                     type="button"
                     onClick={() => setSearchQuery("")}
+                    aria-label="Borrar búsqueda"
                     className="absolute right-3 top-2.5 text-adobe-muted hover:text-adobe-dark text-xs font-bold"
                   >
                     &times;
@@ -3160,8 +3233,8 @@ export function HomePlacesClient({
                                     : ""}
                                 </span>
                               ) : (
-                                <span className="text-emerald-700 font-semibold">
-                                  ✓ Verificado
+                                <span className="text-slate-500 font-medium" title="Este lugar aún no tiene calificación de usuarios">
+                                  Sin calificación aún
                                 </span>
                               )}
 
@@ -3215,6 +3288,7 @@ export function HomePlacesClient({
                           {item.kind === "lodging" && (
                             <button
                               type="button"
+                              title="El hotel ancla es tu punto de partida y regreso: las rutas de cada día se calculan desde él"
                               onClick={() =>
                                 isHotelAnchor
                                   ? setHotelAnchor(null)

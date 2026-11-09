@@ -8,6 +8,11 @@ registra cambios pequeños de formato.
 
 ### Experiencia de usuario y navegación interactiva (LibertadGO)
 
+- Auditoría UX con prueba en navegador: tras crear el viaje se abre directamente el itinerario (antes quedaba en un Resumen en ceros sin siguiente paso) y el Resumen ahora tiene botones de acción.
+- Se eliminó información inventada: «✓ Verificado» sin calificación, puntaje 50 por defecto, horario sugerido genérico, descripción genérica «verificada» y valores de clima de relleno (ahora «Sin dato» / «Sin pronóstico»).
+- Las fechas del viaje se validan (salida no anterior a llegada, dentro del pronóstico) y las predeterminadas parten de hoy.
+- Presupuesto vacío muestra una guía en lugar de S/ 0.00; se aclara que no incluye entradas, comida ni hospedaje.
+- Tooltips para Hotel Ancla y Modo Viaje; tarjetas de viajes accesibles con teclado; marca unificada a LibertadGO; encabezado del catálogo ya no se comprime.
 - Se incorporó la sección «Explorar Servicios» en el itinerario con accesos directos a Comida, Hoteles y Actividades que filtran instantáneamente el catálogo.
 - Se implementó la tarjeta «Notas del Viaje» con auto-guardado en tiempo real en la persistencia local de viajes.
 - Se optimizó la tarjeta «Presupuesto Estimado de Transporte» por día con formato claro de tarifas, tiempo en minutos y avisos de verificación local.

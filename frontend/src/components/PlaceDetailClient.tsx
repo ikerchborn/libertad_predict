@@ -83,8 +83,8 @@ export function PlaceDetailClient({
       ? "Establecimiento de alojamiento en La Libertad con registro formal."
       : place.kind === "food"
       ? "Restaurante con oferta culinaria regional y tradicional de la costa norte."
-      : "Destino turístico destacado de la región La Libertad con valores históricos, culturales y naturales verificados.");
-  const bestTime = imgInfo?.bestTime ?? "9:00 AM - 1:00 PM";
+      : "Destino turístico de la región La Libertad. Aún no tenemos una descripción detallada; confirma horarios y accesos antes de ir.");
+  const bestTime = imgInfo?.bestTime ?? null;
   const displayedSafetyScore = place.safety_score;
   const displayedSafetyReport = place.safety_report;
   const activeDayNumber = activeTripDay
@@ -114,11 +114,12 @@ export function PlaceDetailClient({
     router.push("/");
   };
 
-  const scoreVal =
+  const rawScore =
     place.kind === "attraction"
-      ? activeDay?.score ?? 50
-      : place.recommendation_score ?? place.score ?? 50;
-  const step = getHeatmapClassification(scoreVal);
+      ? activeDay?.score ?? null
+      : place.recommendation_score ?? place.score ?? null;
+  const scoreVal: number | null = typeof rawScore === "number" ? rawScore : null;
+  const step = scoreVal != null ? getHeatmapClassification(scoreVal) : null;
 
   return (
     <div className="min-h-screen flex flex-col justify-between antialiased selection:bg-moche-500 selection:text-white bg-adobe-bg text-adobe-dark font-sans">
@@ -256,6 +257,7 @@ export function PlaceDetailClient({
                 <div className="bg-adobe-bg rounded-xl p-4 border border-adobe-border/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     {place.kind === "attraction" ? (
+                      step && scoreVal != null ? (
                       <div className={`${step.badgeClass} rounded-2xl px-4 py-2 text-center shadow-sm`}>
                         <div className="font-display text-2xl font-extrabold leading-none">
                           {scoreVal >= 80 ? "Buen clima" : scoreVal >= 60 ? "Clima variable" : "Revisa el clima"}
@@ -264,6 +266,12 @@ export function PlaceDetailClient({
                           {step.name}
                         </div>
                       </div>
+                      ) : (
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-center text-slate-700 shadow-sm">
+                        <div className="font-display text-xl font-extrabold leading-none">Sin pronóstico</div>
+                        <div className="mt-1 text-[10px] font-semibold">No hay datos para esta fecha</div>
+                      </div>
+                      )
                     ) : (
                       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-center text-amber-900 shadow-sm">
                         <div className="font-display text-xl font-extrabold leading-none">
@@ -301,7 +309,7 @@ export function PlaceDetailClient({
                     </div>
                   </div>
 
-                  {place.kind === "attraction" && (
+                  {place.kind === "attraction" && bestTime && (
                     <div className="text-xs border-t sm:border-t-0 sm:border-l border-adobe-border sm:pl-4 pt-2 sm:pt-0">
                       <span className="text-adobe-muted flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5 text-moche-500" /> Horario sugerido:
@@ -405,7 +413,7 @@ export function PlaceDetailClient({
               <div className="flex items-center justify-between border-b border-adobe-border/60 pb-3">
                 <div>
                   <h2 className="text-lg font-display font-bold text-adobe-dark">
-                    Reseñas y Experiencias Verificadas
+                    Reseñas de visitantes
                   </h2>
                   <p className="text-xs text-adobe-muted">
                     Opiniones públicas archivadas localmente en la base de datos territorial.

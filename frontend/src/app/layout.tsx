@@ -17,9 +17,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "La Libertad Predict • Planificador Inteligente de Viajes",
+  title: "LibertadGO • Planificador Inteligente de Viajes",
   description:
-    "Motor predictivo de conveniencia de destinos turísticos, arqueológicos y litorales del departamento de La Libertad.",
+    "Planifica tu viaje por La Libertad, Perú: itinerarios por día, mapa, transporte local estimado y pronóstico del clima.",
 };
 
 export default function RootLayout({

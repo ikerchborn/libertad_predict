@@ -96,6 +96,8 @@ function formatFactorName(rawName: string): string {
       return "Temporada Turística";
     case "price_relative":
       return "Rango Tarifario";
+    case "external_rating":
+      return "Calificación de usuarios";
     default:
       return rawName.replace(/_/g, " ");
   }
@@ -104,19 +106,19 @@ function formatFactorName(rawName: string): string {
 function extractMeasurement(explanation: string): string {
   if (explanation.includes("Temperatura")) {
     const m = explanation.match(/([\d\.]+\s*°?C)/);
-    return m ? m[1] : "22.5 °C";
+    return m ? m[1] : "Sin dato";
   }
   if (explanation.includes("Precipitación")) {
     const m = explanation.match(/([\d\.]+\s*mm)/);
-    return m ? m[1] : "0.0 mm";
+    return m ? m[1] : "Sin dato";
   }
   if (explanation.includes("UV")) {
     const m = explanation.match(/UV\s*([\d\.]+)/);
-    return m ? `Índice UV ${m[1]}` : "UV Moderado";
+    return m ? `Índice UV ${m[1]}` : "Sin dato";
   }
   if (explanation.includes("Viento")) {
     const m = explanation.match(/([\d\.]+\s*km\/h)/);
-    return m ? m[1] : "12 km/h";
+    return m ? m[1] : "Sin dato";
   }
   if (explanation.includes("Oleaje") || explanation.includes("Ola")) {
     const m = explanation.match(/([\d\.]+\s*m)/);

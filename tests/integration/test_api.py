@@ -16,7 +16,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from sqlalchemy import Engine
+from sqlalchemy import Engine, event
 from sqlalchemy import create_engine as sa_create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
@@ -181,6 +181,42 @@ async def test_list_places_pagination_and_scores(client: httpx.AsyncClient) -> N
     assert p2["kind"] == "attraction"
     assert p2["score"] is None
     assert p2["convenience_score"] is None
+
+
+@pytest.mark.asyncio
+async def test_places_enrichment_queries_are_batched(
+    client: httpx.AsyncClient, test_engine: Engine
+) -> None:
+    statements: list[str] = []
+
+    def record_statement(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        if statement.lstrip().upper().startswith("SELECT"):
+            statements.append(statement.lower())
+
+    event.listen(test_engine, "before_cursor_execute", record_statement)
+    try:
+        response = await client.get("/places?limit=10&q=Chan&query_date=2026-07-15")
+    finally:
+        event.remove(test_engine, "before_cursor_execute", record_statement)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    for table_name in ("place_details", "weather_daily", "marine_daily"):
+        matching_queries = [statement for statement in statements if table_name in statement]
+        assert len(matching_queries) <= 1
+
+
+@pytest.mark.asyncio
+async def test_places_reject_unknown_zone_filter(client: httpx.AsyncClient) -> None:
+    response = await client.get("/places?zone=unknown")
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

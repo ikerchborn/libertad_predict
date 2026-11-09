@@ -26,16 +26,31 @@
 
 .map-shell .leaflet-marker-icon .map-catalog-marker {
   display: flex;
-  width: 30px;
-  height: 30px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   border: 2px solid #fff;
   border-radius: 9999px;
   background: var(--marker-color);
   box-shadow: 0 2px 7px rgb(15 23 42 / 30%);
-  font-size: 13px;
+  font-size: 17px;
   transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.map-shell .leaflet-marker-icon .map-catalog-cluster {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #fff;
+  border-radius: 9999px;
+  background: #0f172a;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 35%);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 800;
 }
 
 .map-shell .leaflet-marker-icon:hover .map-catalog-marker,

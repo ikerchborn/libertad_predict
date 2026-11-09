@@ -9,6 +9,43 @@ No se encontró una clave privada expuesta ni un vector directo de XSS en los co
 
 Los riesgos principales son de rendimiento y fiabilidad: el catálogo de rutas urbanas llega al cliente dentro de un chunk JavaScript de **4.61 MB sin comprimir (947 KB gzip)**; Leaflet reconstruye el mapa completo cuando cambian los segmentos; y los fallbacks de OSRM pueden dibujar conexiones directas aproximadas. También faltan cabeceras de seguridad HTTP y límites de memoria para la caché en proceso.
 
+## Estado de remediación (2026-11-09)
+
+La tabla de hallazgos siguiente describe el estado inicial de la auditoría. Este estado actualizado la sustituye para valorar qué queda pendiente:
+
+| Hallazgo | Estado | Cambio aplicado y límite restante |
+|---|---|---|
+| H-01 — Catálogo de transporte en el bundle | Parcial | El catálogo urbano se carga con `import()` al necesitar cálculo multimodal, en vez de incorporarse al primer chunk. El JSON completo todavía se descarga cuando se requiere esa resolución; falta dividirlo/servirlo desde backend y fijar un presupuesto de bundle. |
+| H-02 — Fallback OSRM parece ruta vial | Mitigado | Timeout de 4 s, geometría validada, motivo explícito del fallback, estilo aproximado discontinuo y aviso persistente en el mapa. No se verificó que el proveedor público OSRM tenga un perfil peatonal adecuado para Trujillo. |
+| M-01 — Cabeceras de seguridad | Mitigado | Next.js envía cabeceras de seguridad y CSP `Report-Only`; HSTS queda limitado a producción. La CSP no se debe poner en modo enforcement hasta revisar telemetría y compatibilidad con Leaflet. |
+| M-02 — Tarifa sin caché/límite | Mitigado en un proceso | Tarifa cacheada cinco minutos y límite por cliente de 60 solicitudes/minuto. Es memoria local al proceso; producción con varias instancias requiere rate limit compartido en proxy/servicio. |
+| M-03 — Caché FastAPI sin límites | Corregido | Caché LRU con topes de entradas y bytes, expiración y exclusión de respuestas con autorización/cookies. |
+| M-04 — Leaflet se reconstruye por segmentos | Mitigado | La instancia/capas base se separan de la actualización de rutas; cambios exclusivos de segmentos ya no reinician el mapa. |
+| M-05 — Optimización sin límites ni progreso | Corregido con límite | Máximo de ocho paradas para optimizar, lotes con progreso y acción de cancelación. La cancelación invalida el resultado y evita nuevos lotes, pero no aborta solicitudes que ya estén en vuelo. |
+| M-06 — Consultas N+1 de `/places` | Corregido | Filtros de zona/búsqueda en SQL y carga por lotes de detalles, clima y datos marinos. |
+| M-07 — Radio de acceso inconsistente | Corregido | Umbral único de 800 m en la resolución peatonal, con helper y prueba de límite. |
+| B-01 — Pines solapados/pequeños | Mitigado | Clustering seleccionable y objetivos de mapa de 44 px; se conservan los marcadores individuales al ampliar/separar el grupo. |
+
+### Validación posterior a los cambios
+
+- `npm --prefix frontend run test` — **7 pruebas pasaron** (optimizador, OSRM y transporte).
+- `npm --prefix frontend run build` — **pasó**, incluyendo compilación TypeScript y build de producción.
+- `npm --prefix frontend run lint` — **0 errores; 19 advertencias** de hooks, `<img>` y símbolos sin uso.
+- `.\.venv\Scripts\python.exe -m pytest -q` — **79 pruebas pasaron**, 1 advertencia de deprecación de Starlette/httpx.
+- `.\.venv\Scripts\ruff.exe check src\turismo\shared\cache.py src\turismo\shared\config.py src\turismo\places\api.py src\turismo\places\infrastructure\repository.py src\turismo\app\api.py tests\unit\test_cache.py tests\unit\test_config.py tests\integration\test_api.py` — **pasó**.
+- `npm --prefix frontend audit --omit=dev` — **0 vulnerabilidades**.
+- Smoke API local — `/places` respondió HTTP 200; CORS permitió `http://localhost:3000` y no expuso `Access-Control-Allow-Origin` a un origen no permitido.
+- Rate limit local — **60 solicitudes HTTP 200 y la solicitud 61 HTTP 429** desde la misma clave de cliente.
+- Navegador Playwright manual — se creó un itinerario, se agregaron tres destinos, se calcularon dos tramos multimodales y se dibujaron marcadores ordenados, caminatas y transporte. Seleccionar una línea colectiva abrió la ficha con empresa, tarifa, frecuencia, hitos y tiempos; cerrar la ficha restauró el mapa. Seleccionar un pin abrió la ficha del lugar. En esta ruta de prueba no hubo errores JavaScript.
+
+### Riesgos/pendientes que permanecen
+
+1. El rate limit y la caché del handler de tarifa viven en memoria por instancia; definir coordinación distribuida para despliegues con varias réplicas.
+2. CSP permanece en `Report-Only`; recolectar/revisar reportes antes de hacerla cumplir y endurecer estilos inline gradualmente.
+3. La validez de rutas peatonales del OSRM público no está demostrada. Los fallbacks siguen siendo aproximaciones y se identifican como tales.
+4. El botón de cancelación no cancela solicitudes de red que ya comenzaron; solo evita resultados obsoletos y lotes nuevos.
+5. El flujo de navegador fue una verificación manual con Playwright, no una suite E2E persistida en el repositorio. Automatizar agregar → optimizar → seleccionar tramo → abrir/cerrar ficha.
+
 ## Hallazgos priorizados
 
 | ID | Severidad | Área | Hallazgo |

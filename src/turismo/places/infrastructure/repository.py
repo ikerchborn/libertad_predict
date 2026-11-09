@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import Date, DateTime, column, insert, select, table
+from sqlalchemy import Date, DateTime, column, insert, or_, select, table
 from sqlalchemy.orm import Session
 
 from turismo.places.infrastructure.models import OfferORM, PlaceDetailORM, PlaceORM
@@ -99,6 +99,49 @@ def _orm_to_place(row: PlaceORM) -> Place:
     )
 
 
+def _orm_to_place_detail(row: PlaceDetailORM) -> PlaceDetail:
+    reviews = [
+        PlaceReview(
+            author_name=str(review.get("author_name", "Usuario")),
+            rating=float(review.get("rating", 5.0)),
+            text=str(review.get("text", "")),
+            relative_time=review.get("relative_time"),
+        )
+        for review in (row.reviews_json or [])
+        if isinstance(review, dict) and review.get("text")
+    ]
+    safety_report: PlaceSafetyReport | None = None
+    if row.safety_report_json and isinstance(row.safety_report_json, dict):
+        try:
+            safety_report = PlaceSafetyReport.model_validate(row.safety_report_json)
+        except Exception:
+            safety_report = None
+    return PlaceDetail(
+        place_id=row.place_id,
+        website=row.website,
+        phone=row.phone,
+        address=row.address,
+        opening_hours=row.opening_hours,
+        cuisine=row.cuisine,
+        stars=float(row.stars) if row.stars is not None else None,
+        user_rating_count=row.user_rating_count,
+        price_level=row.price_level,
+        price_min=float(row.price_min) if row.price_min is not None else None,
+        price_max=float(row.price_max) if row.price_max is not None else None,
+        currency=row.currency,
+        menu_url=row.menu_url,
+        maps_url=row.maps_url,
+        image_url=row.image_url,
+        local_image_path=row.local_image_path,
+        google_place_id=row.google_place_id,
+        reviews=reviews,
+        safety_score=float(row.safety_score) if row.safety_score is not None else None,
+        safety_report=safety_report,
+        source=row.source,
+        fetched_at=row.fetched_at,
+    )
+
+
 class PlaceRepo:
     def __init__(self, session: Session) -> None:
         self._session = session
@@ -127,6 +170,8 @@ class PlaceRepo:
         query_date: date,
         category: PlaceCategory | None = None,
         kind: PlaceKind | None = None,
+        zone: str | None = None,
+        query: str | None = None,
         limit: int = 20,
         offset: int = 0,
     ) -> list[tuple[Place, float | None, float | None]]:
@@ -142,6 +187,24 @@ class PlaceRepo:
             stmt = stmt.where(PlaceORM.kind == kind.value)
         elif category:
             stmt = stmt.where(PlaceORM.category == category.value)
+        if zone == "costa":
+            stmt = stmt.where(PlaceORM.coast_type == CoastType.COASTAL.value)
+        elif zone == "sierra":
+            stmt = stmt.where(PlaceORM.lon > -78.50)
+        elif zone == "valle":
+            stmt = stmt.where(
+                PlaceORM.coast_type != CoastType.COASTAL.value,
+                PlaceORM.lon <= -78.50,
+            )
+        if query:
+            escaped_query = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{escaped_query}%"
+            stmt = stmt.where(
+                or_(
+                    PlaceORM.name.ilike(pattern, escape="\\"),
+                    PlaceORM.address.ilike(pattern, escape="\\"),
+                )
+            )
         stmt = stmt.order_by(PlaceORM.id).limit(limit).offset(offset)
 
         rows = self._session.execute(stmt).all()
@@ -158,50 +221,15 @@ class PlaceRepo:
         row = self._session.scalar(
             select(PlaceDetailORM).where(PlaceDetailORM.place_id == place_id)
         )
-        if not row:
-            return None
-        raw_reviews = row.reviews_json or []
-        reviews = [
-            PlaceReview(
-                author_name=str(rv.get("author_name", "Usuario")),
-                rating=float(rv.get("rating", 5.0)),
-                text=str(rv.get("text", "")),
-                relative_time=rv.get("relative_time"),
-            )
-            for rv in raw_reviews
-            if isinstance(rv, dict) and rv.get("text")
-        ]
-        safety_report: PlaceSafetyReport | None = None
-        if row.safety_report_json and isinstance(row.safety_report_json, dict):
-            try:
-                safety_report = PlaceSafetyReport.model_validate(row.safety_report_json)
-            except Exception:
-                safety_report = None
+        return _orm_to_place_detail(row) if row else None
 
-        return PlaceDetail(
-            place_id=row.place_id,
-            website=row.website,
-            phone=row.phone,
-            address=row.address,
-            opening_hours=row.opening_hours,
-            cuisine=row.cuisine,
-            stars=float(row.stars) if row.stars is not None else None,
-            user_rating_count=row.user_rating_count,
-            price_level=row.price_level,
-            price_min=float(row.price_min) if row.price_min is not None else None,
-            price_max=float(row.price_max) if row.price_max is not None else None,
-            currency=row.currency,
-            menu_url=row.menu_url,
-            maps_url=row.maps_url,
-            image_url=row.image_url,
-            local_image_path=row.local_image_path,
-            google_place_id=row.google_place_id,
-            reviews=reviews,
-            safety_score=float(row.safety_score) if row.safety_score is not None else None,
-            safety_report=safety_report,
-            source=row.source,
-            fetched_at=row.fetched_at,
-        )
+    def get_place_details(self, place_ids: list[int]) -> dict[int, PlaceDetail]:
+        if not place_ids:
+            return {}
+        rows = self._session.scalars(
+            select(PlaceDetailORM).where(PlaceDetailORM.place_id.in_(set(place_ids)))
+        ).all()
+        return {row.place_id: _orm_to_place_detail(row) for row in rows}
 
     def upsert_place_detail(self, d: PlaceDetail) -> None:
         row = {
@@ -378,6 +406,44 @@ class PlaceRepo:
             fetched_at=row.fetched_at,
         )
 
+    def get_weather_for_locations(
+        self, location_ids: list[int], target_date: date
+    ) -> dict[int, WeatherDay]:
+        if not location_ids:
+            return {}
+        rows = self._session.execute(
+            select(
+                _weather_daily_table.c.location_id,
+                _weather_daily_table.c.date,
+                _weather_daily_table.c.temp_max_c,
+                _weather_daily_table.c.temp_min_c,
+                _weather_daily_table.c.precipitation_mm,
+                _weather_daily_table.c.rain_probability,
+                _weather_daily_table.c.uv_index,
+                _weather_daily_table.c.wind_speed_kmh,
+                _weather_daily_table.c.source,
+                _weather_daily_table.c.fetched_at,
+            ).where(
+                _weather_daily_table.c.location_id.in_(set(location_ids)),
+                _weather_daily_table.c.date == target_date,
+            )
+        ).all()
+        return {
+            int(row.location_id): WeatherDay(
+                location_id=int(row.location_id),
+                date=row.date,
+                temp_max_c=float(row.temp_max_c),
+                temp_min_c=float(row.temp_min_c),
+                precipitation_mm=float(row.precipitation_mm),
+                rain_probability=float(row.rain_probability),
+                uv_index=float(row.uv_index),
+                wind_speed_kmh=float(row.wind_speed_kmh),
+                source=str(row.source),
+                fetched_at=row.fetched_at,
+            )
+            for row in rows
+        }
+
     def get_marine_for_location(self, location_id: int, target_date: date) -> MarineDay | None:
         row = self._session.execute(
             select(
@@ -402,6 +468,36 @@ class PlaceRepo:
             source=str(row.source),
             fetched_at=row.fetched_at,
         )
+
+    def get_marine_for_locations(
+        self, location_ids: list[int], target_date: date
+    ) -> dict[int, MarineDay]:
+        if not location_ids:
+            return {}
+        rows = self._session.execute(
+            select(
+                _marine_daily_table.c.location_id,
+                _marine_daily_table.c.date,
+                _marine_daily_table.c.wave_height_m,
+                _marine_daily_table.c.wave_period_s,
+                _marine_daily_table.c.source,
+                _marine_daily_table.c.fetched_at,
+            ).where(
+                _marine_daily_table.c.location_id.in_(set(location_ids)),
+                _marine_daily_table.c.date == target_date,
+            )
+        ).all()
+        return {
+            int(row.location_id): MarineDay(
+                location_id=int(row.location_id),
+                date=row.date,
+                wave_height_m=float(row.wave_height_m),
+                wave_period_s=float(row.wave_period_s),
+                source=str(row.source),
+                fetched_at=row.fetched_at,
+            )
+            for row in rows
+        }
 
     def get_score_summary(self, place_id: int, target_date: date) -> tuple[float, float] | None:
         row = self._session.execute(

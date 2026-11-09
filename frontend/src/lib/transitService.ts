@@ -2,7 +2,6 @@ import type { Place } from '@/lib/types';
 import { haversineKm } from '@/lib/routeOptimizer';
 import { fetchOsrmRoute, type OsrmRouteResult } from '@/lib/osrmService';
 import transportCatalogJson from '@/data/transport_outside_trujillo.json';
-import truxdiRouteData from '@/data/rutas_trujillo.json';
 
 type CatalogVehicleType = 'bus' | 'combi' | 'colectivo' | 'mototaxi';
 type CatalogConfidence = 'alta' | 'media' | 'baja';
@@ -114,16 +113,22 @@ interface TruxdiRoute {
 const transportCatalog = transportCatalogJson as unknown as TransportCatalog;
 const catalogStops = new Map(transportCatalog.stops.map((stop) => [stop.id, stop]));
 const catalogRoutes = new Map(transportCatalog.routes.map((route) => [route.id, route]));
-const truxdiRoutes = (
-  truxdiRouteData as unknown as { routes: TruxdiRoute[] }
-).routes;
+let truxdiRoutesPromise: Promise<TruxdiRoute[]> | null = null;
 const truxdiGeometryDistanceCache = new Map<string, number>();
 const truxdiCandidatesCache = new Map<
   string,
   Array<{ transit: TransitOption; totalEstimatedMinutes: number }>
 >();
-const MAX_URBAN_WALK_TO_STOP_KM = 0.9;
-const MAX_UNVERIFIED_WALK_TO_STOP_KM = 0.9;
+export const MAX_TRANSIT_WALK_METERS = 800;
+const MAX_TRANSIT_WALK_KM = MAX_TRANSIT_WALK_METERS / 1000;
+
+export function isTransitWalkOverLimit(distanceMeters: number): boolean {
+  return distanceMeters > MAX_TRANSIT_WALK_METERS;
+}
+
+function isTransitWalkOverLimitKm(distanceKm: number): boolean {
+  return isTransitWalkOverLimit(distanceKm * 1000);
+}
 
 export interface TransitOption {
   code: string;
@@ -211,6 +216,14 @@ function getRouteColor(code: string): string {
 
 function getCatalogStop(id: string): CatalogStop | undefined {
   return catalogStops.get(id);
+}
+
+function loadTruxdiRoutes(): Promise<TruxdiRoute[]> {
+  truxdiRoutesPromise ??= import('@/data/rutas_trujillo.json').then((module) => {
+    const data = module.default as unknown as { routes: TruxdiRoute[] };
+    return data.routes;
+  });
+  return truxdiRoutesPromise;
 }
 
 function getBadgeColor(route: Pick<CatalogRoute, 'badge_color' | 'code'>): string {
@@ -307,16 +320,17 @@ function getTruxdiFullRouteDistanceKm(
 
 function getTruxdiTransitCandidates(
   origin: Place,
-  destination: Place
+  destination: Place,
+  routes: TruxdiRoute[]
 ): Array<{ transit: TransitOption; totalEstimatedMinutes: number }> {
   const cacheKey = `${origin.lat},${origin.lon}>${destination.lat},${destination.lon}`;
   const cachedCandidates = truxdiCandidatesCache.get(cacheKey);
   if (cachedCandidates) return cachedCandidates;
 
   const candidates: Array<{ transit: TransitOption; totalEstimatedMinutes: number }> = [];
-  const maxStopAccessKm = MAX_URBAN_WALK_TO_STOP_KM;
+  const maxStopAccessKm = MAX_TRANSIT_WALK_KM;
 
-  for (const route of truxdiRoutes) {
+  for (const route of routes) {
     if (
       !route.vehicle_type ||
       typeof route.fare?.standard !== 'number' ||
@@ -890,8 +904,7 @@ function createInternalWalkOption(
 function getTransitBetweenPlacesBase(
   origin: Place,
   destination: Place,
-  urbanFare = 2.5,
-  includeTruxdi = true
+  urbanFare = 2.5
 ): TransitOption {
   const dist = haversineKm(origin.lat, origin.lon, destination.lat, destination.lon);
   const fromZone = getZone(origin);
@@ -915,25 +928,6 @@ function getTransitBetweenPlacesBase(
       dropoffPoint: [destination.lat, destination.lon],
       instructions: `Trayecto corto de ${Math.round(dist * 1000)} m en línea directa. La distancia real a pie puede ser mayor; sigue las calles peatonales.`,
     };
-  }
-
-  if (includeTruxdi) {
-    const truxdiOption = getTruxdiTransitCandidates(origin, destination).find(
-      ({ transit }) =>
-        haversineKm(
-          origin.lat,
-          origin.lon,
-          transit.boardingPoint[0],
-          transit.boardingPoint[1]
-        ) <= 0.3 &&
-        haversineKm(
-          transit.dropoffPoint[0],
-          transit.dropoffPoint[1],
-          destination.lat,
-          destination.lon
-        ) <= 0.3
-    )?.transit;
-    if (truxdiOption) return truxdiOption;
   }
 
   const catalogOption = getCatalogRoute(fromZone, toZone);
@@ -1209,9 +1203,9 @@ export function getTransitBetweenPlaces(
     ) &&
     (
       haversineKm(origin.lat, origin.lon, transit.boardingPoint[0], transit.boardingPoint[1]) >
-        MAX_UNVERIFIED_WALK_TO_STOP_KM ||
+        MAX_TRANSIT_WALK_KM ||
       haversineKm(transit.dropoffPoint[0], transit.dropoffPoint[1], destination.lat, destination.lon) >
-        MAX_UNVERIFIED_WALK_TO_STOP_KM
+        MAX_TRANSIT_WALK_KM
     )
   ) {
     return enrichTransitOption(
@@ -1230,9 +1224,7 @@ function getTransitFallbackWithoutTruxdi(
   destination: Place,
   urbanFare: number
 ): TransitOption {
-  return enrichTransitOption(
-    getTransitBetweenPlacesBase(origin, destination, urbanFare, false)
-  );
+  return enrichTransitOption(getTransitBetweenPlacesBase(origin, destination, urbanFare));
 }
 
 function getDirectTaxiOption(
@@ -1294,10 +1286,10 @@ async function getFallbackTransitWithAccessLimit(
   const tooFarToWalk = accessDistances.some((distanceKm, index) => {
     const route = accessRoutes[index];
     if (route) {
-      return route.distanceKm > MAX_URBAN_WALK_TO_STOP_KM ||
-        (route.isFallback && distanceKm > MAX_UNVERIFIED_WALK_TO_STOP_KM);
+      return isTransitWalkOverLimitKm(route.distanceKm) ||
+        (route.isFallback && isTransitWalkOverLimitKm(distanceKm));
     }
-    return distanceKm > MAX_URBAN_WALK_TO_STOP_KM;
+    return isTransitWalkOverLimitKm(distanceKm);
   });
 
   return tooFarToWalk
@@ -1315,7 +1307,8 @@ async function resolveTruxdiTransit(
   origin: Place,
   destination: Place
 ): Promise<TransitOption | null> {
-  const candidates = getTruxdiTransitCandidates(origin, destination);
+  const routes = await loadTruxdiRoutes();
+  const candidates = getTruxdiTransitCandidates(origin, destination, routes);
   for (const candidate of candidates.slice(0, 2)) {
     const transit = candidate.transit;
     const accessDistances = [
@@ -1342,9 +1335,9 @@ async function resolveTruxdiTransit(
     ]);
     const inaccessible = accessRoutes.some((route, index) => {
       if (!route) return accessDistances[index] > 0.05;
-      if (route.distanceKm > MAX_URBAN_WALK_TO_STOP_KM) return true;
+      if (isTransitWalkOverLimitKm(route.distanceKm)) return true;
       return route.isFallback &&
-        accessDistances[index] > MAX_UNVERIFIED_WALK_TO_STOP_KM;
+        isTransitWalkOverLimitKm(accessDistances[index]);
     });
     if (inaccessible) continue;
 

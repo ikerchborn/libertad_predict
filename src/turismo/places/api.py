@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from typing import Literal
 from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -35,10 +36,10 @@ def list_places(
     category: PlaceCategory | None = Query(
         default=None, description="Filtrar por categoría legacy"
     ),
-    zone: str | None = Query(
+    zone: Literal["costa", "valle", "sierra"] | None = Query(
         default=None, description="Filtrar por zona (costa, valle, sierra)"
     ),
-    q: str | None = Query(default=None, description="Búsqueda por texto"),
+    q: str | None = Query(default=None, max_length=100, description="Búsqueda por texto"),
     query_date: date | None = Query(
         default=None, description="Fecha para incluir score (YYYY-MM-DD)"
     ),
@@ -53,38 +54,38 @@ def list_places(
         query_date=target_date,
         category=category,
         kind=kind,
-        limit=500 if (zone or q) else limit,
-        offset=0 if (zone or q) else offset,
+        zone=zone,
+        query=q,
+        limit=limit,
+        offset=offset,
     )
+
+    details_by_place = place_repo.get_place_details(
+        [place.id for place, _, _ in rows if place.id is not None]
+    )
+    nearest_by_place = {
+        place.id: find_nearest_location(place.lat, place.lon, locations)
+        for place, _, _ in rows
+        if place.id is not None
+    }
+    location_ids = list(
+        {
+            nearest.id
+            for nearest in nearest_by_place.values()
+            if nearest is not None
+        }
+    )
+    weather_by_location = place_repo.get_weather_for_locations(location_ids, target_date)
+    marine_by_location = place_repo.get_marine_for_locations(location_ids, target_date)
 
     results: list[PlaceOut] = []
     for p, score, confidence in rows:
-        if zone:
-            z_lower = zone.lower()
-            if z_lower == "costa" and p.coast_type != CoastType.COASTAL:
-                continue
-            if z_lower == "sierra" and p.lon <= -78.50:
-                continue
-            if z_lower == "valle" and (p.coast_type == CoastType.COASTAL or p.lon > -78.50):
-                continue
-
-        if q:
-            q_lower = q.lower()
-            name_match = q_lower in p.name.lower()
-            addr_match = bool(p.address and q_lower in p.address.lower())
-            if not (name_match or addr_match):
-                continue
-
-        detail = place_repo.get_place_detail(p.id) if p.id else None
-        nearest_loc = find_nearest_location(p.lat, p.lon, locations)
-        w_day = (
-            place_repo.get_weather_for_location(nearest_loc.id, target_date)
-            if nearest_loc is not None
-            else None
-        )
+        detail = details_by_place.get(p.id) if p.id is not None else None
+        nearest_loc = nearest_by_place.get(p.id) if p.id is not None else None
+        w_day = weather_by_location.get(nearest_loc.id) if nearest_loc else None
         m_day = (
-            place_repo.get_marine_for_location(nearest_loc.id, target_date)
-            if (nearest_loc is not None and p.coast_type == CoastType.COASTAL)
+            marine_by_location.get(nearest_loc.id)
+            if nearest_loc is not None and p.coast_type == CoastType.COASTAL
             else None
         )
         maps_url = (
@@ -155,8 +156,6 @@ def list_places(
             )
         )
 
-    if zone or q:
-        return results[offset : offset + limit]
     return results
 
 

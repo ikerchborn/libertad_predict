@@ -5,6 +5,7 @@ Loaded from environment variables / .env file.
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -113,6 +114,33 @@ class Settings(BaseSettings):
         if upper not in valid:
             raise ValueError(f"log_level must be one of {valid}")
         return upper
+
+    @field_validator("cors_origins")
+    @classmethod
+    def _validate_cors_origins(cls, origins: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for origin in origins:
+            parsed = urlsplit(origin.strip())
+            hostname = (parsed.hostname or "").lower()
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.path not in {"", "/"}
+                or parsed.query
+                or parsed.fragment
+                or origin.strip() == "*"
+            ):
+                raise ValueError("cors_origins must contain explicit HTTP(S) origins only")
+            if parsed.scheme == "http" and hostname not in {
+                "localhost",
+                "127.0.0.1",
+                "::1",
+            }:
+                raise ValueError("non-local CORS origins must use HTTPS")
+            normalized.append(f"{parsed.scheme}://{parsed.netloc}")
+        return normalized
 
 
 def get_settings() -> Settings:

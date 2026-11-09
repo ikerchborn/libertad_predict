@@ -12,6 +12,6 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        value: '["https://lalibertad-predict.vercel.app","http://localhost:3000"]'
+        value: '["https://lalibertad-predict.vercel.app"]'
       - key: DOCS_ENABLED
-        value: "true"
+        value: "false"

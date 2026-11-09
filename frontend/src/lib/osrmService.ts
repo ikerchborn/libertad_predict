@@ -3,31 +3,53 @@ export interface OsrmRouteResult {
   distanceKm: number;
   durationMin: number;
   isFallback: boolean;
+  fallbackReason?: string;
 }
 
 /**
- * Fetches street-level routing geometry from public OSRM.
- * Falls back to straight connections if OSRM is unreachable or throttled.
+ * Fetches routing geometry from public OSRM.
+ * A fallback is only an approximate connector and must not be presented as street guidance.
  */
 export async function fetchOsrmRoute(
   waypoints: [number, number][], // [lat, lon][]
   mode: 'walking' | 'driving' = 'driving'
 ): Promise<OsrmRouteResult | null> {
-  if (waypoints.length < 2) return null;
+  if (
+    waypoints.length < 2 ||
+    waypoints.some(([lat, lon]) => !Number.isFinite(lat) || !Number.isFinite(lon))
+  ) {
+    return null;
+  }
 
   // Format: {lon},{lat};{lon},{lat}...
   const coordsQuery = waypoints.map(([lat, lon]) => `${lon.toFixed(6)},${lat.toFixed(6)}`).join(';');
   const profile = mode === 'walking' ? 'foot' : 'driving';
   const url = `https://router.project-osrm.org/route/v1/${profile}/${coordsQuery}?overview=full&geometries=geojson`;
+  let fallbackReason = 'El servicio de rutas no devolvió una ruta vial válida.';
 
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
-    if (!res.ok) throw new Error(`OSRM error: ${res.status}`);
+    const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!res.ok) {
+      fallbackReason = `El servicio de rutas respondió con estado ${res.status}.`;
+      throw new Error(fallbackReason);
+    }
     const data = await res.json();
     const route = data.routes?.[0];
 
     if (!route || !route.geometry?.coordinates) {
       throw new Error('No route in OSRM payload');
+    }
+    if (
+      route.geometry.coordinates.length < 2 ||
+      route.geometry.coordinates.some(
+        (coordinate: unknown) =>
+          !Array.isArray(coordinate) ||
+          coordinate.length < 2 ||
+          !Number.isFinite(coordinate[0]) ||
+          !Number.isFinite(coordinate[1])
+      )
+    ) {
+      throw new Error('Invalid route geometry in OSRM payload');
     }
 
     // OSRM GeoJSON is [lon, lat], convert to Leaflet [lat, lon]
@@ -41,7 +63,12 @@ export async function fetchOsrmRoute(
       durationMin: Math.round((route.duration || 0) / 60),
       isFallback: false,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      fallbackReason = 'El cálculo de calles excedió 4 segundos.';
+    } else if (error instanceof Error && error.message !== fallbackReason) {
+      fallbackReason = 'No se pudo validar la ruta sobre la red vial.';
+    }
     // Fallback: direct waypoint connections
     let totalKm = 0;
     for (let i = 0; i < waypoints.length - 1; i++) {
@@ -60,6 +87,7 @@ export async function fetchOsrmRoute(
       distanceKm: totalKm,
       durationMin: Math.round(mode === 'walking' ? (totalKm / 4.5) * 60 : (totalKm / 35) * 60),
       isFallback: true,
+      fallbackReason,
     };
   }
 }

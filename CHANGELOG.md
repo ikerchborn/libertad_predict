@@ -6,6 +6,31 @@ registra cambios pequeños de formato.
 
 ## 2026-11-09
 
+### Remediación de auditoría técnica y verificación integral
+
+- Se acotó la caché FastAPI por cantidad y bytes, se agruparon consultas de
+  lugares y se restringieron CORS y cabeceras; la CSP de Next.js se dejó en
+  modo `Report-Only`.
+- Se difirió la carga del catálogo urbano, se añadió caché y límite por proceso
+  al endpoint de tarifas, y se fijaron límites y progreso/cancelación para
+  optimizar itinerarios.
+- Las rutas OSRM ahora tienen timeout de 4 s, validación de geometría y aviso
+  visible cuando el trazado es aproximado. Se desacopló la actualización de
+  segmentos del ciclo de vida principal de Leaflet y se añadió agrupación de
+  marcadores.
+- Se añadieron pruebas unitarias para caché, configuración, OSRM, optimización
+  y transporte, y se actualizó la guía de validación en `README.md`.
+- Verificación: build de producción pasó; Vitest 7/7; pytest 79/79; Ruff pasó;
+  ESLint terminó sin errores (19 advertencias); auditoría de dependencias de
+  producción reportó 0 vulnerabilidades. En navegador se comprobó el mapa,
+  itinerario de tres destinos, selección de lugar, ficha de transporte y cierre.
+  La API respondió correctamente y el rate limit local dio 60 respuestas 200 y
+  la solicitud 61 con 429.
+- Pendientes conocidos: validar el perfil peatonal de OSRM; migrar rate limit a
+  almacenamiento compartido para múltiples instancias; revisar CSP antes de
+  imponerla; automatizar el flujo E2E y abortar solicitudes ya iniciadas al
+  cancelar una optimización.
+
 ### Mapa del planificador: selección y adición de lugares
 
 - Al elegir un lugar desde un marcador, el mapa lo enfoca y la ficha ofrece

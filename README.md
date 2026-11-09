@@ -65,6 +65,7 @@ Desde la raíz del repositorio:
 .\.venv\Scripts\python -m pytest -q
 Set-Location frontend
 npm run lint
+npm run test
 npm run build
 ```
 

@@ -36,7 +36,11 @@ import { Footer } from "@/components/Footer";
 import { PLACE_IMAGES, type Place, type PlaceKind, type PlaceDetail } from "@/lib/types";
 import { fetchPlaceById, fetchPlaces } from "@/lib/api";
 import { useTripCache } from "@/hooks/useTripCache";
-import { haversineKm, optimizeDayRoute } from "@/lib/routeOptimizer";
+import {
+  haversineKm,
+  MAX_OPTIMIZABLE_STOPS,
+  optimizeDayRoute,
+} from "@/lib/routeOptimizer";
 import { fetchOsrmRoute } from "@/lib/osrmService";
 import {
   estimateTransitCostMinutes,
@@ -214,11 +218,17 @@ export function HomePlacesClient({
 
   // Route calculation state
   const [isCalculating, setIsCalculating] = useState(false);
+  const [optimizationError, setOptimizationError] = useState<string | null>(null);
   const [routeStats, setRouteStats] = useState<{ km: number; min: number } | null>(
     null
   );
   const [routeSegments, setRouteSegments] = useState<MapRouteSegment[]>([]);
   const [selectedLegId, setSelectedLegId] = useState<string | null>(null);
+  const [optimizationProgress, setOptimizationProgress] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
+  const optimizationRunRef = useRef(0);
   const [resolvedTransitOptions, setResolvedTransitOptions] = useState<
     Record<string, TransitOption>
   >({});
@@ -624,7 +634,10 @@ export function HomePlacesClient({
                 (segment.vehicleType === "taxi" &&
                   Boolean(segment.route) &&
                   !segment.route?.isFallback),
-              isApproximate: segment.isApproximate ?? segment.route?.isFallback ?? false,
+              isApproximate:
+                segment.isApproximate ??
+                (segment.route?.isFallback ?? !segment.route),
+              routeFallbackReason: segment.route?.fallbackReason,
             }))
         );
         setIsCalculating(false);
@@ -650,6 +663,14 @@ export function HomePlacesClient({
   // Run 2-Opt local search heuristic on current day
   const handleOptimize = async () => {
     if (!activeDay || activeDay.places.length <= 1) return;
+    if (activeDay.places.length > MAX_OPTIMIZABLE_STOPS) {
+      setOptimizationError(
+        `La optimización admite hasta ${MAX_OPTIMIZABLE_STOPS} paradas por día. Reduce el itinerario y vuelve a intentarlo.`
+      );
+      return;
+    }
+    setOptimizationError(null);
+    const runId = ++optimizationRunRef.current;
     setIsCalculating(true);
     try {
       const candidates = trip.hotelAnchor
@@ -663,7 +684,9 @@ export function HomePlacesClient({
         )
       );
       const transitByPair = new Map<string, TransitOption>();
+      setOptimizationProgress({ completed: 0, total: pairs.length });
       for (let index = 0; index < pairs.length; index += 4) {
+        if (optimizationRunRef.current !== runId) return;
         const batch = pairs.slice(index, index + 4);
         const resolved = await Promise.all(
           batch.map(async ({ origin, destination, key }) => ({
@@ -671,7 +694,12 @@ export function HomePlacesClient({
             transit: await resolveTransitBetweenPlaces(origin, destination, urbanFare),
           }))
         );
+        if (optimizationRunRef.current !== runId) return;
         resolved.forEach(({ key, transit }) => transitByPair.set(key, transit));
+        setOptimizationProgress({
+          completed: Math.min(index + batch.length, pairs.length),
+          total: pairs.length,
+        });
       }
 
       const optimized = optimizeDayRoute(
@@ -690,8 +718,17 @@ export function HomePlacesClient({
     } catch (error) {
       console.error("No se pudo optimizar la ruta multimodal:", error);
     } finally {
-      setIsCalculating(false);
+      if (optimizationRunRef.current === runId) {
+        setIsCalculating(false);
+        setOptimizationProgress(null);
+      }
     }
+  };
+
+  const cancelOptimization = () => {
+    optimizationRunRef.current += 1;
+    setIsCalculating(false);
+    setOptimizationProgress(null);
   };
 
   // Derive zone for filtering
@@ -1763,10 +1800,36 @@ export function HomePlacesClient({
                       className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-2xs transition disabled:opacity-50 cursor-pointer"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      <span>{isCalculating ? "Optimizando..." : "Optimizar Ruta"}</span>
+                      <span>
+                        {optimizationProgress
+                          ? `Consultando rutas ${optimizationProgress.completed}/${optimizationProgress.total}`
+                          : isCalculating
+                            ? "Calculando..."
+                            : "Optimizar Ruta"}
+                      </span>
                     </button>
                   )}
                 </div>
+                {optimizationProgress && (
+                  <button
+                    type="button"
+                    onClick={cancelOptimization}
+                    className="mt-2 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    aria-label="Cancelar optimización de ruta"
+                  >
+                    Cancelar optimización
+                  </button>
+                )}
+                {optimizationError && activeDay && activeDay.places.length > MAX_OPTIMIZABLE_STOPS && (
+                  <p role="alert" className="mt-2 text-xs font-semibold text-red-700">
+                    {optimizationError}
+                  </p>
+                )}
+                {activeDay && activeDay.places.length > MAX_OPTIMIZABLE_STOPS && (
+                  <p className="mt-2 text-xs text-amber-900">
+                    La optimización multimodal está limitada a {MAX_OPTIMIZABLE_STOPS} paradas por día.
+                  </p>
+                )}
                 {longDistanceSteps.length > 0 && (
                     <div className="rounded-xl border border-orange-300 bg-orange-50 px-3 py-3 text-xs leading-relaxed text-orange-950">
                       <p className="font-bold">Excursión larga fuera del área urbana</p>

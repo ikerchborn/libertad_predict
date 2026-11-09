@@ -1,5 +1,7 @@
 import type { Place } from '@/lib/types';
 
+export const MAX_OPTIMIZABLE_STOPS = 8;
+
 export function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -24,6 +26,9 @@ export function optimizeDayRoute(
   edgeCost: (from: Place, to: Place) => number = (from, to) =>
     haversineKm(from.lat, from.lon, to.lat, to.lon)
 ): Place[] {
+  if (places.length > MAX_OPTIMIZABLE_STOPS) {
+    throw new RangeError(`Itinerary optimization supports at most ${MAX_OPTIMIZABLE_STOPS} stops.`);
+  }
   if (places.length <= 1) return [...places];
 
   const costs = places.map((from) =>

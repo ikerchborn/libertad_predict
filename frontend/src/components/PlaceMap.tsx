@@ -41,6 +41,43 @@ const EMPTY_PLACES: Place[] = [];
 const EMPTY_ROUTE_SEGMENTS: MapRouteSegment[] = [];
 type LeafletModule = typeof import('leaflet');
 
+function createVehicleGlyph(vehicleType?: MapRouteSegment['vehicleType']): SVGSVGElement {
+  const isTaxi = vehicleType === 'taxi';
+  const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  icon.setAttribute('viewBox', '0 0 24 24');
+  icon.setAttribute('width', '15');
+  icon.setAttribute('height', '15');
+  icon.setAttribute('fill', 'none');
+  icon.setAttribute('stroke', 'currentColor');
+  icon.setAttribute('stroke-width', '1.8');
+  icon.setAttribute('stroke-linecap', 'round');
+  icon.setAttribute('stroke-linejoin', 'round');
+  icon.setAttribute('aria-hidden', 'true');
+
+  const shapes: Array<{
+    tagName: 'path' | 'circle';
+    attributes: Record<string, string>;
+  }> = isTaxi
+    ? [
+        { tagName: 'path', attributes: { d: 'M5 17h14l1-5-2-5H6l-2 5 1 5Z' } },
+        { tagName: 'path', attributes: { d: 'm8 7 1-3h6l1 3M5 12h14' } },
+        { tagName: 'circle', attributes: { cx: '8', cy: '15', r: '1' } },
+        { tagName: 'circle', attributes: { cx: '16', cy: '15', r: '1' } },
+      ]
+    : [
+        { tagName: 'path', attributes: { d: 'M5 19V6a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v13' } },
+        { tagName: 'path', attributes: { d: 'M5 11h14M8 19v2m8-2v2' } },
+        { tagName: 'circle', attributes: { cx: '8', cy: '15', r: '1' } },
+        { tagName: 'circle', attributes: { cx: '16', cy: '15', r: '1' } },
+      ];
+  shapes.forEach(({ tagName, attributes }) => {
+    const shape = document.createElementNS('http://www.w3.org/2000/svg', tagName);
+    Object.entries(attributes).forEach(([name, value]) => shape.setAttribute(name, value));
+    icon.appendChild(shape);
+  });
+  return icon;
+}
+
 function createWalkingMarker(
   L: LeafletModule,
   segment: MapRouteSegment,
@@ -206,13 +243,16 @@ function renderRouteSegments(
       const content = document.createElement('div');
       content.className = 'route-endpoint-pin-content';
       const label = document.createElement('span');
-      label.textContent = isTaxi
-        ? `🚕 ${action === 'Sube' ? 'Punto de recojo' : 'Destino'}`
-        : `🚌 ${action}`;
+      const actionLabel = document.createElement('span');
+      actionLabel.textContent = isTaxi
+        ? action === 'Sube' ? 'Punto de recojo' : 'Destino'
+        : action;
       label.style.cssText =
-        'display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border:2px solid #fff;border-radius:999px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgb(15 23 42 / 35%)';
+        'display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:5px 8px;border:2px solid #fff;border-radius:999px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgb(15 23 42 / 35%)';
       label.style.backgroundColor = segment.badgeColor ?? color;
       label.style.color = segment.textColor ?? '#fff';
+      label.appendChild(createVehicleGlyph(segment.vehicleType));
+      label.appendChild(actionLabel);
       content.appendChild(label);
       if (!isTaxi) {
         const code = document.createElement('span');
@@ -423,7 +463,10 @@ export default function PlaceMap({
       if (!isMounted || !mapContainerRef.current) return;
 
       const map = L.map(mapContainerRef.current, {
-        scrollWheelZoom: false,
+        scrollWheelZoom: true,
+        touchZoom: true,
+        doubleClickZoom: true,
+        zoomControl: true,
         zoomAnimation: false,
         markerZoomAnimation: false,
         fadeAnimation: false,
@@ -725,17 +768,23 @@ export default function PlaceMap({
             const container = document.createElement('div');
             container.className = 'route-endpoint-pin-content';
             const label = document.createElement('span');
+            label.style.cssText =
+              'display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:5px 8px;border:2px solid #fff;border-radius:999px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgb(15 23 42 / 35%)';
+            label.style.backgroundColor = segment.badgeColor ?? color;
+            label.style.color = segment.textColor ?? '#fff';
+            label.appendChild(createVehicleGlyph(segment.vehicleType));
+            const actionLabel = document.createElement('span');
             if (segment.vehicleType === 'taxi') {
-              label.textContent = `🚕 ${action === 'Sube' ? 'Punto de recojo' : 'Destino'}`;
-              label.style.cssText =
-                'display:inline-flex;align-items:center;justify-content:center;padding:5px 8px;border-radius:999px;background:#A16207;color:#fff;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px rgb(15 23 42 / 35%)';
+              actionLabel.textContent = action === 'Sube' ? 'Punto de recojo' : 'Destino';
+              label.appendChild(actionLabel);
               container.append(label);
             } else {
               const badge = document.createElement('span');
               badge.textContent = segment.routeCode ?? segment.legId ?? '';
               badge.style.cssText =
                 `display:inline-flex;align-items:center;justify-content:center;min-width:24px;padding:2px 5px;border-radius:999px;background:${segment.badgeColor ?? color};color:${segment.textColor ?? '#fff'};font-size:10px;font-weight:800`;
-              label.textContent = `🚌 ${action}`;
+              actionLabel.textContent = action;
+              label.appendChild(actionLabel);
               container.append(badge, label);
             }
             return container;
@@ -1254,10 +1303,12 @@ export default function PlaceMap({
       {mapReady && routeSegments.some((segment) => segment.isApproximate) && (
         <div
           role="status"
-          className="absolute left-3 top-14 z-[1000] max-w-xs rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-950 shadow"
+          className="pointer-events-none absolute right-3 top-12 z-[1000] max-w-xs rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-950 shadow"
         >
-          Una o más líneas son aproximadas y no están validadas sobre calles.{' '}
-          {routeSegments.find((segment) => segment.isApproximate)?.routeFallbackReason}
+          Algunos recorridos de micro no tienen geometría oficial confirmada. Se intenta
+          calcular la conexión por calles; si OSRM falla, se dibuja una línea directa. Este
+          trazado no confirma la ruta real del servicio.{' '}
+          {routeSegments.find((segment) => segment.routeFallbackReason)?.routeFallbackReason}
         </div>
       )}
     </div>
@@ -1276,7 +1327,7 @@ export default function PlaceMap({
     >
       {mapContent}
       {mapError && (
-        <div className="absolute left-3 top-14 z-[1000] max-w-xs rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-[11px] text-orange-900 shadow">
+        <div className="pointer-events-none absolute right-3 top-12 z-[1000] max-w-xs rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-[11px] text-orange-900 shadow">
           {mapError} Las líneas de recorrido siguen disponibles cuando hay coordenadas.
         </div>
       )}

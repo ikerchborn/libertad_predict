@@ -6,6 +6,21 @@ registra cambios pequeños de formato.
 
 ## 2026-11-09
 
+### Interacción y trazos del mapa
+
+- Se habilitaron el zoom con rueda y gesto táctil, y se elevaron los controles de
+  Leaflet para que los avisos no bloqueen acercar/alejar.
+- Los tramos de transporte sin geometría propia solicitan ahora una ruta vial a
+  OSRM en vez de dibujar automáticamente una línea recta. El aviso distingue
+  este trazado estimado de la ruta real no confirmada del micro.
+
+### Iconos vectoriales para transporte en el mapa
+
+- Se reemplazaron los emojis de micro y taxi en los marcadores de subida y bajada
+  por iconos SVG vectoriales, manteniendo las etiquetas, códigos, colores y
+  acciones de selección.
+- Los iconos se generan con SVG en el navegador y no agregan dependencias.
+
 ### TSDoc y responsabilidades en `frontend/src/lib`
 
 - Se revisaron los módulos TypeScript de la biblioteca frontend, incluidos

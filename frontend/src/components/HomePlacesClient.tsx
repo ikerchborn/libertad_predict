@@ -540,23 +540,7 @@ export function HomePlacesClient({
                 coordinates: routeGeometry,
                 distanceKm,
                 durationMin: segment.estimatedMinutes ?? 0,
-                isFallback: !segment.routeGeometryVerified,
-              },
-            };
-          }
-          if (segment.kind === "transit" && segment.vehicleType !== "taxi") {
-            return {
-              ...segment,
-              route: {
-                coordinates: [segment.origin, segment.destination],
-                distanceKm: haversineKm(
-                  segment.origin[0],
-                  segment.origin[1],
-                  segment.destination[0],
-                  segment.destination[1]
-                ),
-                durationMin: segment.estimatedMinutes ?? 0,
-                isFallback: true,
+                isFallback: false,
               },
             };
           }

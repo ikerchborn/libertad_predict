@@ -110,10 +110,9 @@
   white-space: nowrap;
 }
 
-.map-shell .leaflet-pane,
 .map-shell .leaflet-top,
 .map-shell .leaflet-bottom {
-  z-index: 1;
+  z-index: 1001;
 }
 
 .map-shell-expanded {

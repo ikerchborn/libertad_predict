@@ -4,6 +4,7 @@ import React, { useCallback, useState, useMemo, useEffect, useRef } from "react"
 import Link from "next/link";
 import {
   Calendar as CalendarIcon,
+  Bookmark,
   MapPin,
   Search,
   Sparkles,
@@ -153,6 +154,7 @@ export function HomePlacesClient({
     removeDay,
     setActiveDayId,
     addPlaceToDay,
+    toggleSavedPlace,
     removePlaceFromDay,
     reorderPlaces,
     setDayPlaces,
@@ -204,9 +206,10 @@ export function HomePlacesClient({
 
   // Responsive mobile / tablet view switcher
   const [mobileTab, setMobileTab] = useState<"itinerary" | "map">("itinerary");
+  const [plannerView, setPlannerView] = useState<"summary" | "explore" | "itinerary">("summary");
 
   // Places List filters & pagination
-  const [listCategory, setListCategory] = useState<"all" | PlaceKind>("attraction");
+  const [listCategory, setListCategory] = useState<"all" | PlaceKind>("all");
   const [listZone, setListZone] = useState<"all" | "costa" | "valle" | "sierra">(
     "all"
   );
@@ -237,6 +240,15 @@ export function HomePlacesClient({
 
   // Ref to scroll to places list when clicking guide cards
   const placesListRef = useRef<HTMLDivElement>(null);
+  const wasTripStartedRef = useRef(trip.isStarted);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    if (!wasTripStartedRef.current && trip.isStarted) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+    wasTripStartedRef.current = trip.isStarted;
+  }, [isHydrated, trip.isStarted]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1336,7 +1348,10 @@ export function HomePlacesClient({
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setIsStarted(true)}
+                  onClick={() => {
+                    setPlannerView("explore");
+                    setIsStarted(true);
+                  }}
                   className="text-xs font-semibold text-adobe-muted hover:text-moche-600 underline decoration-dotted transition cursor-pointer"
                 >
                   O explora directamente el catálogo de {initialPlaces.length} destinos y servicios &rarr;
@@ -1351,8 +1366,25 @@ export function HomePlacesClient({
           <div className="planner-dashboard">
             <aside className="planner-sidebar" aria-label="Navegación del planificador">
               <span className="planner-sidebar-label">TU VIAJE</span>
-              <a href="#planner-summary"><MapPin />Resumen</a>
-              <a href="#places-catalog"><Compass />Explorar</a>
+              <button
+                type="button"
+                className={plannerView === "summary" ? "active" : ""}
+                aria-current={plannerView === "summary" ? "page" : undefined}
+                onClick={() => setPlannerView("summary")}
+              >
+                <MapPin />Resumen
+              </button>
+              <button
+                type="button"
+                className={plannerView === "explore" ? "active" : ""}
+                aria-current={plannerView === "explore" ? "page" : undefined}
+                onClick={() => setPlannerView("explore")}
+              >
+                <Compass />Explorar
+                <span className="ml-auto rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">
+                  {initialPlaces.length}
+                </span>
+              </button>
               <Link href="/places"><Landmark />Lugares</Link>
               <span className="planner-sidebar-label planner-days-label">ITINERARIO</span>
               {trip.days.map((day, index) => (
@@ -1361,6 +1393,7 @@ export function HomePlacesClient({
                   type="button"
                   onClick={() => {
                     setActiveDayId(day.id);
+                    setPlannerView("itinerary");
                     document.getElementById("planner-itinerary")?.scrollIntoView({ behavior: "smooth" });
                   }}
                   className={day.id === activeDay?.id ? "active" : ""}
@@ -1371,11 +1404,115 @@ export function HomePlacesClient({
               ))}
             </aside>
             <nav className="planner-mobile-nav" aria-label="Secciones del viaje">
-              <a href="#planner-summary">Resumen</a>
-              <a href="#planner-itinerary">Itinerario</a>
+              <button
+                type="button"
+                aria-current={plannerView === "summary" ? "page" : undefined}
+                onClick={() => setPlannerView("summary")}
+              >
+                Resumen
+              </button>
+              <button
+                type="button"
+                aria-current={plannerView === "explore" ? "page" : undefined}
+                onClick={() => setPlannerView("explore")}
+              >
+                Explorar
+              </button>
+              <button
+                type="button"
+                aria-current={plannerView === "itinerary" ? "page" : undefined}
+                onClick={() => setPlannerView("itinerary")}
+              >
+                Itinerario
+              </button>
               <Link href="/places">Lugares</Link>
             </nav>
-            <div className={`planner-main ${!isMapVisible ? "planner-main-map-hidden" : ""}`}>
+            <div
+              className={`planner-main ${
+                !isMapVisible || plannerView === "summary"
+                  ? "planner-main-map-hidden"
+                  : ""
+              }`}
+              data-planner-view={plannerView}
+            >
+            <section className="planner-summary-view" aria-labelledby="trip-overview-title">
+              <header className="border-b border-adobe-border/70 pb-4">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-moche-600">
+                  Resumen del viaje
+                </span>
+                <h1 id="trip-overview-title" className="mt-1 font-display text-2xl font-extrabold text-adobe-dark">
+                  {trip.title || `Viaje a ${trip.destination}`}
+                </h1>
+                <p className="mt-1 text-xs text-adobe-muted">
+                  Destino: <strong className="text-adobe-dark">{trip.destination}</strong>, La Libertad
+                  {" · "}{trip.days.length} días ({tripNights} noches)
+                </p>
+              </header>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {[
+                  {
+                    label: "Actividades",
+                    value: trip.days.reduce((total, day) => total + day.places.length, 0),
+                    color: "text-moche-600",
+                  },
+                  {
+                    label: "Por visitar",
+                    value: trip.savedPlaces.length,
+                    color: "text-amber-600",
+                  },
+                  { label: "Disponibles", value: initialPlaces.length, color: "text-adobe-dark" },
+                ].map((stat) => (
+                  <div key={stat.label} className="rounded-xl border border-adobe-border bg-slate-50/80 px-4 py-4 text-center">
+                    <strong className={`block text-xl font-extrabold ${stat.color}`}>{stat.value}</strong>
+                    <span className="mt-1 block text-xs text-adobe-muted">{stat.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-xl border border-adobe-border bg-slate-50/70 p-4">
+                <h2 className="text-xs font-extrabold text-adobe-dark">Planificación en {trip.destination}</h2>
+                <p className="mt-1 text-xs leading-relaxed text-adobe-muted">
+                  Organiza tus visitas por día. Explora el catálogo para encontrar lugares y añádelos
+                  directamente al día del viaje actual que prefieras.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-xs leading-relaxed text-emerald-900">
+                <strong className="block">Datos del catálogo y mapa</strong>
+                <span className="mt-1 block">
+                  Los lugares y sus ubicaciones se muestran desde el catálogo disponible; las rutas
+                  de transporte pueden ser estimadas cuando no existe geometría oficial confirmada.
+                </span>
+              </div>
+
+              <section aria-labelledby="trip-day-breakdown-title">
+                <h2 id="trip-day-breakdown-title" className="mb-3 text-xs font-extrabold uppercase tracking-wide text-adobe-dark">
+                  Desglose del itinerario
+                </h2>
+                <div className="space-y-2">
+                  {trip.days.map((day, index) => (
+                    <button
+                      key={day.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveDayId(day.id);
+                        setPlannerView("itinerary");
+                      }}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-adobe-border bg-white px-3.5 py-3 text-left transition hover:border-moche-300 hover:bg-moche-50/40"
+                    >
+                      <span>
+                        <strong className="block text-xs font-semibold text-adobe-dark">Día {index + 1}</strong>
+                        <span className="mt-0.5 block text-[11px] text-adobe-muted">{formatPlannerDate(day.date)}</span>
+                      </span>
+                      <span className="rounded-md border border-adobe-border bg-slate-50 px-2 py-1 text-[11px] font-bold text-adobe-dark">
+                        {day.places.length} {day.places.length === 1 ? "actividad" : "actividades"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </section>
 
             {/* Trip planning progress */}
             <ol
@@ -2193,7 +2330,11 @@ export function HomePlacesClient({
               {/* Right Column (5 cols): Territorial Interactive Leaflet Map */}
               {isMapVisible && <div
                 className={`planner-map-column lg:col-span-5 ${
-                  mobileTab === "itinerary" ? "hidden lg:block" : "block"
+                  plannerView === "explore"
+                    ? "block"
+                    : mobileTab === "itinerary"
+                      ? "hidden lg:block"
+                      : "block"
                 }`}
               >
                 <div className="planner-map-sticky space-y-3">
@@ -2687,9 +2828,12 @@ export function HomePlacesClient({
                     <span>Catálogo de Lugares para Visitar ({filteredPlacesList.length})</span>
                   </h2>
                   <p className="text-xs text-adobe-muted">
-                    Explora y añade directamente atractivos, restaurantes u hospedajes al {activeDayLabel}.
+                    Explora el catálogo, guarda lugares en Por visitar o asígnalos a un día del viaje actual.
                   </p>
                 </div>
+                <span className="rounded-md border border-adobe-border bg-slate-50 px-2 py-1 font-mono text-[10px] text-adobe-muted">
+                  {trip.savedPlaces.length} guardados
+                </span>
 
                 {/* Zone Filter Dropdown */}
                 <div className="flex items-center gap-2">
@@ -2706,7 +2850,6 @@ export function HomePlacesClient({
                   </select>
                 </div>
                 </div>
-              </div>
 
               {/* Category Filter Tabs */}
               <div className="planner-category-tabs flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -2899,6 +3042,28 @@ export function HomePlacesClient({
                           >
                             Detalle
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => toggleSavedPlace(item)}
+                            aria-pressed={trip.savedPlaces.some((savedPlace) => savedPlace.id === item.id)}
+                            aria-label={
+                              trip.savedPlaces.some((savedPlace) => savedPlace.id === item.id)
+                                ? `Quitar ${item.name} de Por visitar`
+                                : `Guardar ${item.name} en Por visitar`
+                            }
+                            title={
+                              trip.savedPlaces.some((savedPlace) => savedPlace.id === item.id)
+                                ? "Quitar de Por visitar"
+                                : "Guardar en Por visitar"
+                            }
+                            className={`rounded-lg border p-1.5 transition ${
+                              trip.savedPlaces.some((savedPlace) => savedPlace.id === item.id)
+                                ? "border-moche-300 bg-moche-50 text-moche-700"
+                                : "border-adobe-border text-adobe-muted hover:bg-adobe-bg"
+                            }`}
+                          >
+                            <Bookmark className="h-4 w-4" />
+                          </button>
 
                           {/* Hotel Anchor Action for Lodgings */}
                           {item.kind === "lodging" && (
@@ -2974,6 +3139,7 @@ export function HomePlacesClient({
                 </div>
               )}
             </div>
+          </div>
           </div>
         )}
 

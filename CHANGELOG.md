@@ -10,6 +10,11 @@ registra cambios pequeños de formato.
 
 - Se habilitaron el zoom con rueda y gesto táctil, y se elevaron los controles de
   Leaflet para que los avisos no bloqueen acercar/alejar.
+- Se corrigió la visualización del mapa en Explorar para móvil y tableta; los
+  controles de navegación ya no quedan debajo del encabezado y el mapa conserva
+  sus controles de Leaflet al abrirse y cerrarse en pantalla completa.
+- Al iniciar un viaje desde la portada, el planificador abre desde el inicio de
+  la página para evitar que el mapa quede fuera de vista en pantallas pequeñas.
 - Los tramos de transporte sin geometría propia solicitan ahora una ruta vial a
   OSRM en vez de dibujar automáticamente una línea recta. El aviso distingue
   este trazado estimado de la ruta real no confirmada del micro.
@@ -33,6 +38,10 @@ registra cambios pequeños de formato.
   por lugar y pines numerados para las paradas del itinerario activo.
 - Se retiró la sección Notas del Viaje. Al añadir lugares desde Explorar, se
   muestran directamente los días del viaje actual, sin listar otros viajes.
+- Se separaron Resumen, Explorar e Itinerario como vistas independientes. El
+  resumen contiene indicadores y desglose de días; Explorar mantiene catálogo y
+  mapa, con opciones para guardar en Por visitar o añadir al día del viaje
+  activo. La lista Por visitar se persiste por viaje.
 
 ### TSDoc y responsabilidades en `frontend/src/lib`
 

@@ -18,6 +18,7 @@ export interface TripState {
   endDate: string;
   isStarted: boolean;
   notes: string;
+  savedPlaces: Place[];
   days: TripDay[];
   activeDayId: string;
   hotelAnchor: Place | null;
@@ -43,6 +44,7 @@ export const createDefaultTrip = (destination = 'Trujillo', title?: string): Tri
     endDate: '2026-11-16',
     isStarted: false,
     notes: '',
+    savedPlaces: [],
     days: [
       { id: day1Id, title: 'Día 1: Arqueología y Costa', date: '2026-11-12', places: [] },
       { id: day2Id, title: 'Día 2: Cultura y Centro Histórico', date: '2026-11-13', places: [] },
@@ -183,6 +185,9 @@ function normalizeTrip(raw: unknown): TripState | null {
     endDate: endDate || fallbackBase.endDate,
     isStarted: typeof candidate.isStarted === 'boolean' ? candidate.isStarted : false,
     notes: typeof candidate.notes === 'string' ? candidate.notes : '',
+    savedPlaces: Array.isArray(candidate.savedPlaces)
+      ? candidate.savedPlaces.map(normalizePlace).filter((place): place is Place => Boolean(place))
+      : [],
     days: safeDays,
     activeDayId,
     hotelAnchor,
@@ -545,9 +550,22 @@ export function useTripCache() {
 
       return {
         ...prev,
+        savedPlaces: prev.savedPlaces.filter((savedPlace) => savedPlace.id !== place.id),
         days: prev.days.map((d) =>
           d.id === dayId ? { ...d, places: [...d.places, place] } : d
         ),
+      };
+    });
+  }, [updateActiveTrip]);
+
+  const toggleSavedPlace = useCallback((place: Place) => {
+    updateActiveTrip((prev) => {
+      const alreadySaved = prev.savedPlaces.some((savedPlace) => savedPlace.id === place.id);
+      return {
+        ...prev,
+        savedPlaces: alreadySaved
+          ? prev.savedPlaces.filter((savedPlace) => savedPlace.id !== place.id)
+          : [...prev.savedPlaces, place],
       };
     });
   }, [updateActiveTrip]);
@@ -658,6 +676,7 @@ export function useTripCache() {
     removeDay,
     setActiveDayId,
     addPlaceToDay,
+    toggleSavedPlace,
     removePlaceFromDay,
     reorderPlaces,
     setDayPlaces,

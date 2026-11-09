@@ -1176,7 +1176,7 @@ export default function PlaceMap({
 
   const mapContent = (
     <div className={`map-content ${isExpanded ? 'relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-adobe-border bg-white shadow-2xl' : 'relative w-full'}`}>
-      <div className="flex items-center justify-between border-b border-adobe-border bg-white px-3 py-2">
+      <div className="relative z-[1102] flex shrink-0 items-center justify-between border-b border-adobe-border bg-white px-3 py-2">
         <span className="text-xs font-bold text-adobe-dark">Mapa y recorrido</span>
         <button
           type="button"
@@ -1190,11 +1190,7 @@ export default function PlaceMap({
       <div
         ref={mapContainerRef}
         data-map-canvas
-        className={
-          isExpanded
-            ? 'map-canvas min-h-0 flex-1 w-full'
-            : 'map-canvas h-80 w-full sm:h-96'
-        }
+        className="map-canvas h-80 w-full sm:h-96"
       />
       {mapReady && (
         <div className="absolute bottom-3 right-3 z-[1000] flex flex-col gap-1.5">

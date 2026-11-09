@@ -30,6 +30,9 @@ import {
   Phone,
   BusFront,
   CarFront,
+  FileText,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -161,6 +164,7 @@ export function HomePlacesClient({
     setHotelAnchor,
     setTripDetails,
     setIsStarted,
+    setNotes,
   } = useTripCache();
 
   // Multi-trip drawer and rename states
@@ -181,6 +185,15 @@ export function HomePlacesClient({
   const [newTripDestinationModal, setNewTripDestinationModal] = useState("");
   const [newDayDate, setNewDayDate] = useState("");
   const [isMapVisible, setIsMapVisible] = useState(true);
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
+
+  const handleQuickFilterCategory = (category: PlaceKind) => {
+    setListCategory(category);
+    setDisplayCount((c) => Math.max(c, 24));
+    setPlannerView("explore");
+    setIsStarted(true);
+    setShouldScrollToPlaces(true);
+  };
 
   // Working Date inputs: default to real dates
   const defaultStart = availableDates[0] || initialDate || "2026-11-06";
@@ -215,6 +228,7 @@ export function HomePlacesClient({
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [displayCount, setDisplayCount] = useState(10);
+  const [shouldScrollToPlaces, setShouldScrollToPlaces] = useState(false);
 
   // Route calculation state
   const [isCalculating, setIsCalculating] = useState(false);
@@ -249,6 +263,15 @@ export function HomePlacesClient({
     }
     wasTripStartedRef.current = trip.isStarted;
   }, [isHydrated, trip.isStarted]);
+
+  useEffect(() => {
+    if (!shouldScrollToPlaces || !trip.isStarted || plannerView !== "explore") return;
+    const frame = window.requestAnimationFrame(() => {
+      placesListRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setShouldScrollToPlaces(false);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [plannerView, shouldScrollToPlaces, trip.isStarted]);
 
   useEffect(() => {
     let isMounted = true;
@@ -774,6 +797,17 @@ export function HomePlacesClient({
       });
   }, [initialPlaces, listCategory, listZone, searchQuery]);
 
+  const openPlacesCatalog = useCallback(() => {
+    setDisplayCount((count) =>
+      plannerView === "explore"
+        ? Math.min(count + 24, filteredPlacesList.length)
+        : Math.min(Math.max(count, 24), filteredPlacesList.length)
+    );
+    setPlannerView("explore");
+    setIsStarted(true);
+    setShouldScrollToPlaces(true);
+  }, [filteredPlacesList.length, plannerView, setIsStarted]);
+
   const categoryCounts = useMemo(
     () => ({
       all: initialPlaces.length,
@@ -1143,11 +1177,7 @@ export function HomePlacesClient({
       <div>
         <Header
           onOpenTrips={() => setIsTripsDrawerOpen(true)}
-          onExplorePlaces={() => {
-            setPlannerView("explore");
-            setDisplayCount((count) => Math.max(count, 24));
-            setIsStarted(true);
-          }}
+          onExplorePlaces={openPlacesCatalog}
           showNavigation={trip.isStarted}
           planner={trip.isStarted ? {
             title: trip.title || `Viaje a ${trip.destination || "Trujillo"}`,
@@ -1383,12 +1413,33 @@ export function HomePlacesClient({
                 type="button"
                 className={plannerView === "explore" ? "active" : ""}
                 aria-current={plannerView === "explore" ? "page" : undefined}
-                onClick={() => setPlannerView("explore")}
+                onClick={() => {
+                  setPlannerView("explore");
+                  document.getElementById("places-catalog")?.scrollIntoView({ behavior: "smooth" });
+                }}
               >
                 <Compass />Explorar
                 <span className="ml-auto rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">
                   {initialPlaces.length}
                 </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlannerView("itinerary");
+                  document.getElementById("planner-notes")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                <FileText />Notas
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setListCategory("all");
+                  openPlacesCatalog();
+                }}
+              >
+                <Landmark />Lugares
               </button>
               <span className="planner-sidebar-label planner-days-label">ITINERARIO</span>
               {trip.days.map((day, index) => (
@@ -1672,43 +1723,115 @@ export function HomePlacesClient({
               </div>
             </div>
 
-            {/* Full-width transit budget */}
-            <div className="planner-actions-budget grid grid-cols-1">
-              <section className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs">
-                <div className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] sm:items-center">
-                  <div className="min-w-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted">
-                      Presupuesto estimado · {activeDayLabel}
+            {/* Quick Services + Transit Budget Row (matching AI Studio experience) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {/* Card 1: Explorar Servicios */}
+              <section className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted block">
+                    Explorar Servicios
+                  </span>
+                  <p className="text-xs text-adobe-muted mt-0.5">
+                    Filtra y descubre gastronomía, estancias y atractivos
+                  </p>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickFilterCategory("food")}
+                    className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-orange-200/80 bg-orange-50/50 p-2.5 text-center transition hover:border-orange-300 hover:bg-orange-50 hover:shadow-xs cursor-pointer"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 text-orange-700">
+                      <Utensils className="h-4 w-4" />
                     </span>
-                    <div className="mt-0.5 font-display text-2xl font-extrabold leading-tight text-adobe-dark">
-                      {totalTransitFareRange[0] === totalTransitFareRange[1]
-                        ? `S/ ${totalTransitFareRange[0].toFixed(2)}`
-                        : `S/ ${totalTransitFareRange[0].toFixed(2)}–${totalTransitFareRange[1].toFixed(2)}`}
-                    </div>
-                  </div>
+                    <span className="text-xs font-bold text-slate-800">Comida</span>
+                  </button>
 
-                  <div className="border-t border-adobe-border/70 pt-2 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted">
-                      Tiempo estimado
+                  <button
+                    type="button"
+                    onClick={() => handleQuickFilterCategory("lodging")}
+                    className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-blue-200/80 bg-blue-50/50 p-2.5 text-center transition hover:border-blue-300 hover:bg-blue-50 hover:shadow-xs cursor-pointer"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+                      <Hotel className="h-4 w-4" />
                     </span>
-                    <p className="mt-0.5 text-sm font-extrabold text-adobe-dark">
-                      ~{routeStats?.min ?? estimatedTransitMinutes + estimatedWalkingMinutes} min
-                      <span className="ml-1 font-normal text-adobe-muted">incluye esperas estimadas</span>
-                    </p>
-                  </div>
+                    <span className="text-xs font-bold text-slate-800">Hoteles</span>
+                  </button>
 
-                  <div className="border-t border-adobe-border/70 pt-2 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
-                      Recorrido del día
+                  <button
+                    type="button"
+                    onClick={() => handleQuickFilterCategory("activity")}
+                    className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-amber-200/80 bg-amber-50/50 p-2.5 text-center transition hover:border-amber-300 hover:bg-amber-50 hover:shadow-xs cursor-pointer"
+                  >
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                      <Sparkles className="h-4 w-4" />
                     </span>
-                    <p className="mt-0.5 text-sm font-extrabold text-emerald-800">
-                      {dayTransitSteps.length} {dayTransitSteps.length === 1 ? "tramo" : "tramos"}
-                      <span className="ml-1 font-normal">calculados</span>
-                    </p>
+                    <span className="text-xs font-bold text-slate-800">Actividades</span>
+                  </button>
+                </div>
+              </section>
+
+              {/* Card 2: Presupuesto Estimado de Transporte */}
+              <section className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-adobe-muted block">
+                    Presupuesto Estimado de Transporte ({activeDayLabel.toUpperCase()})
+                  </span>
+                  <div className="mt-1 font-display text-2xl font-extrabold leading-tight text-adobe-dark">
+                    {totalTransitFareRange[0] === totalTransitFareRange[1]
+                      ? `S/ ${totalTransitFareRange[0].toFixed(2)}`
+                      : `S/ ${totalTransitFareRange[0].toFixed(2)}–${totalTransitFareRange[1].toFixed(2)}`}
+                  </div>
+                  <p className="mt-0.5 text-xs text-adobe-muted">
+                    ~{routeStats?.min ?? estimatedTransitMinutes + estimatedWalkingMinutes} min de transporte y caminata, sin esperas.
+                  </p>
+                </div>
+
+                <div className="mt-3 border-t border-adobe-border/70 pt-2.5">
+                  <p className="text-[10px] leading-relaxed text-amber-900/80">
+                    Antes de subir, confirme el destino del letrero y la tarifa con el servicio local. Rutas y paraderos son referenciales.
+                  </p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200/70">
+                      {dayTransitSteps.length} {dayTransitSteps.length === 1 ? "tramo calculado" : "tramos calculados"}
+                    </span>
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                      Referencial
+                    </span>
                   </div>
                 </div>
               </section>
             </div>
+
+            {/* Card 3: Notas del Viaje (Auto-guardadas) */}
+            <section id="planner-notes" className="rounded-2xl border border-adobe-border bg-white p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-2 border-b border-adobe-border/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-adobe-dark">Notas del Viaje</h3>
+                    <p className="text-[10px] text-adobe-muted">Agrega reservas, contactos o recordatorios para tu viaje.</p>
+                  </div>
+                </div>
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                  <Check className="h-3 w-3" />
+                  <span className="hidden sm:inline">Se guarda automáticamente al escribir</span>
+                  <span className="sm:hidden">Auto-guardado</span>
+                </span>
+              </div>
+              <div className="mt-3">
+                <textarea
+                  key={trip.id}
+                  rows={2}
+                  defaultValue={trip.notes || ""}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Agrega reservas, contactos, números de hotel o recordatorios para tu viaje..."
+                  className="w-full rounded-xl border border-adobe-border/80 bg-slate-50/50 p-2.5 text-xs leading-relaxed text-adobe-dark placeholder:text-adobe-muted/80 focus:border-orange-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-200"
+                />
+              </div>
+            </section>
 
             {/* Mobile / Tablet View Switcher Tab (Hidden on Desktop) */}
             <div className="lg:hidden flex items-center bg-white p-1 rounded-2xl border border-adobe-border shadow-2xs">
@@ -1744,9 +1867,9 @@ export function HomePlacesClient({
             <div id="planner-itinerary" className="planner-workspace grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               {/* Left Column (7 cols): Multi-Day Itinerary with OMUS Transit */}
               <div
-                className={`planner-itinerary-column lg:col-span-12 space-y-4 ${
-                  mobileTab === "map" ? "hidden lg:block" : "block"
-                }`}
+                className={`planner-itinerary-column ${
+                  isMapVisible && !isMapExpanded ? "lg:col-span-7" : "lg:col-span-12"
+                } space-y-4 ${mobileTab === "map" ? "hidden lg:block" : "block"}`}
               >
                 {/* Days Tabs Bar */}
                 <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
@@ -2347,9 +2470,29 @@ export function HomePlacesClient({
                         <MapPin className="w-3.5 h-3.5 text-moche-600" />
                         <span>Mapa de tu día</span>
                       </span>
-                      <span className="text-[10px] text-adobe-muted">
-                        Mapa base OSM
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-adobe-muted hidden sm:inline">
+                          Mapa base OSM
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsMapExpanded((prev) => !prev)}
+                          title={isMapExpanded ? "Restaurar mapa" : "Ampliar mapa"}
+                          className="inline-flex items-center gap-1 rounded-md border border-adobe-border bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700 transition hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200"
+                        >
+                          {isMapExpanded ? (
+                            <>
+                              <Minimize2 className="h-3 w-3" />
+                              <span>Restaurar mapa</span>
+                            </>
+                          ) : (
+                            <>
+                              <Maximize2 className="h-3 w-3" />
+                              <span>Ampliar mapa</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
 
                     <div

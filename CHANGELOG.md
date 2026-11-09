@@ -6,6 +6,16 @@ registra cambios pequeños de formato.
 
 ## 2026-11-09
 
+### Experiencia de usuario y navegación interactiva (LibertadGO)
+
+- Se incorporó la sección «Explorar Servicios» en el itinerario con accesos directos a Comida, Hoteles y Actividades que filtran instantáneamente el catálogo.
+- Se implementó la tarjeta «Notas del Viaje» con auto-guardado en tiempo real en la persistencia local de viajes.
+- Se optimizó la tarjeta «Presupuesto Estimado de Transporte» por día con formato claro de tarifas, tiempo en minutos y avisos de verificación local.
+- Se configuró el diseño dividido de escritorio: el itinerario ocupa 7 columnas y el mapa 5 columnas lado a lado, evitando desplazamientos verticales innecesarios.
+- Se añadió el botón «Ampliar mapa» / «Restaurar mapa» en la cabecera del mapa territorial.
+- Se agregaron accesos directos en la barra lateral para «Notas» y «Lugares».
+- Se integró la opción de estimación de Taxi con rango de tarifas y minutos para trayectos sin micro directo.
+
 ### Interacción y trazos del mapa
 
 - Se habilitaron el zoom con rueda y gesto táctil, y se elevaron los controles de
@@ -14,7 +24,8 @@ registra cambios pequeños de formato.
   controles de navegación ya no quedan debajo del encabezado y el mapa conserva
   sus controles de Leaflet al abrirse y cerrarse en pantalla completa.
 - La opción «Lugares» se movió al encabezado como acceso «+ Lugares» a Explorar;
-  al usarla se muestran más resultados. Las tarjetas del catálogo ahora apilan
+  al usarla abre y desplaza hasta el catálogo, muestra 24 resultados y agrega
+  24 más en cada pulsación posterior. Las tarjetas del catálogo ahora apilan
   sus acciones para evitar comprimir los nombres en columnas estrechas.
 - Se compactó el encabezado móvil del viaje, se evitó que la navegación tape el
   resumen y se quitó el acceso duplicado a Lugares del menú móvil.

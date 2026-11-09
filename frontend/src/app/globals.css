@@ -796,6 +796,10 @@ svg {
   .planner-mobile-nav {
     top: 3.75rem;
   }
+
+  #places-catalog {
+    scroll-margin-top: 8rem;
+  }
 }
 
 @media (max-width: 359px) {

@@ -90,9 +90,11 @@ lalibertad_predict/
 │   └── integration/                       # Suite de integración de repositorios y API
 └── frontend/
     └── src/
-        ├── features/                      # Módulos autocontenidos: places, map, planner, calendar
-        ├── shared/                        # Cliente API, tipos y componentes UI transversales
-        └── app/                           # Rutas Next.js App Router (/, /places/[id], /api/*)
+        ├── app/                           # App Router, estilos globales y páginas
+        ├── components/                    # Mapa, planificador, fichas y UI
+        ├── hooks/                         # Estado y persistencia de viajes
+        ├── lib/                           # API, OSRM, transporte y optimización de rutas
+        └── data/                          # Snapshot y catálogo complementario
 ```
 
 ---
@@ -150,3 +152,41 @@ flowchart TD
    - **`turismo.db`:** Excluido en `.gitignore`; se regenera con `migrate` + `seed`. Los seeds en `data/seeds/` sí se versionan en Git.
    - **Migraciones de Alembic:** El CI y `tests/architecture/test_architecture_contracts.py::test_alembic_has_single_head` verifican que exista exactamente un único `head`.
    - **`weights.yaml`:** Protegido por `tests/scoring/test_weights_golden.py`, que verifica que `config/weights.yaml` y `src/turismo/scoring/weights.yaml` estén sincronizados y valida los scores esperados (golden test) para detectar el impacto numérico exacto en cada PR.
+
+---
+
+## 5. Frontend: mapa y planificador
+
+El mapa vive en el frontend, fuera de los contextos Python del monolito. El cliente del planificador reúne estado de viaje y resultados de transporte, y el componente de mapa los representa:
+
+```mermaid
+flowchart LR
+    Catalog["Snapshot / API de lugares"] --> Home["HomePlacesClient"]
+    Trip["useTripCache\nviajes y días"] --> Home
+    Home --> Transit["transitService"]
+    Transit --> OSRM["osrmService"]
+    OSRM --> Home
+    Home -->|"lugares, día y segmentos"| Map["PlaceMap (Leaflet)"]
+    Map -->|"selección lugar / tramo"| Home
+    Home --> Detail["Ficha de lugar o transporte"]
+    Home --> Trip
+```
+
+### Módulos frontend y contrato del mapa
+
+- **`frontend/src/components/HomePlacesClient.tsx` (`HomePlacesClient`)**: conserva `selectedMapPlace`, `selectedTransitRoute`, `selectedLegId`, día y filtro de catálogo. `handleMapPlaceSelect` abre/carga la ficha; `handleMapTransitSelect` abre la ficha de transporte; `handleMapLegSelect` activa el tramo y coordina el desplazamiento del panel.
+- **`frontend/src/components/PlaceMap.tsx` (`PlaceMap`)**: recibe `routePlaces`, `routeSegments`, `catalogPlaces`, `catalogKind`, `selectedPlace`, callbacks de selección, `hotelAnchor` y `selectedLegId`. Crea capas para catálogo y paradas; evita marcadores adicionales duplicados; conserva marcadores de catálogo cercanos (radio de 10 km respecto de una parada activa o el centro si no hay paradas).
+- **`frontend/src/lib/transitService.ts`**: resuelve modo, empresa, línea, paraderos, costo y caminatas de acceso. Cuando el acceso a un micro/combi excede el umbral de 800 m, el fallback recomienda taxi en vez de presentar esa caminata como un acceso urbano normal.
+- **`frontend/src/lib/osrmService.ts`**: solicita geometría pública OSRM para caminar o conducir; si no está disponible, la geometría devuelta es aproximada y no equivale a una ruta vial verificada.
+- **`frontend/src/hooks/useTripCache.ts`**: persiste el planificador en el navegador; `addPlaceToDay` impide duplicar un mismo lugar dentro del mismo día.
+- **`frontend/src/app/globals.css`**: establece el tamaño del lienzo Leaflet dentro de paneles flexibles y estiliza selección, pines y estado atenuado.
+
+### Interacciones cartográficas
+
+1. Los destinos del día aparecen numerados; el resto del catálogo cercano usa iconografía por tipo y el filtro del catálogo del planificador (`listCategory`).
+2. Seleccionar un lugar notifica al cliente, centra/resalta el marcador y muestra una ficha con la acción para elegir viaje/día.
+3. Las líneas de transporte, sus pines y los indicadores de caminata se enlazan al tramo (`legId`). Al seleccionar un tramo, los demás se atenúan y el mapa encuadra sus coordenadas.
+4. Los controles **Itinerario**, **Vista general** y **Ampliar mapa** encuadran el día activo, restauran la vista inicial capturada tras la carga o expanden el mapa.
+5. El mapa se reajusta ante cambios de tamaño con `ResizeObserver`; no sustituye un navegador GPS ni garantiza disponibilidad de rutas u horarios.
+
+La referencia de interacciones y responsabilidades por función está ampliada en [ESTRUCTURA_DEL_SISTEMA.md](../ESTRUCTURA_DEL_SISTEMA.md). Los cambios de alcance grande se registran en [CHANGELOG.md](../CHANGELOG.md).

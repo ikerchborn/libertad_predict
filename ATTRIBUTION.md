@@ -1,4 +1,22 @@
-# Atribución de Imágenes Wikimedia Commons
+# Atribución de datos cartográficos e imágenes
+
+## OpenStreetMap
+
+El mapa base y parte de los datos del catálogo usan OpenStreetMap. Atribución:
+
+> © OpenStreetMap contributors. Los datos están disponibles bajo la licencia
+> [Open Data Commons Open Database License (ODbL)](https://www.openstreetmap.org/copyright).
+
+La aplicación presenta el enlace a la página de derechos de autor de OpenStreetMap
+junto al mapa. Las coordenadas, nombres y direcciones de los registros adicionales
+del catálogo proceden de OpenStreetMap; no implican validación de horarios,
+precios, calificaciones ni disponibilidad comercial.
+
+## Imágenes Wikimedia Commons y otras fuentes
+
+Las imágenes deben conservar la licencia, autor y enlace fuente indicado para
+cada registro. Las entradas siguientes documentan créditos de imágenes existentes;
+no atribuyen esas fotografías a OpenStreetMap.
 
 Fotografías reales utilizadas bajo licencias Creative Commons y Dominio Público:
 
@@ -190,4 +208,3 @@ Fotografías reales utilizadas bajo licencias Creative Commons y Dominio Públic
   - **Licencia:** CC BY-SA 4.0
   - **Autor:** Pitxiquin
   - **Fuente:** https://upload.wikimedia.org/wikipedia/commons/6/66/Fa%C3%A7anes_superposades_del_Temple_Vell_de_la_Huaca_de_la_Luna_amb_guerres_en_relleus02.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original
-

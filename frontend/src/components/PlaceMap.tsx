@@ -34,6 +34,11 @@ export interface MapRouteSegment {
   isApproximate?: boolean;
 }
 
+const EMPTY_NEARBY_PLACES: NearbyPlace[] = [];
+const EMPTY_ROUTE_COORDINATES: [number, number][] = [];
+const EMPTY_PLACES: Place[] = [];
+const EMPTY_ROUTE_SEGMENTS: MapRouteSegment[] = [];
+
 interface PlaceMapProps {
   place: PlaceDetail;
   nearby?: NearbyPlace[];
@@ -53,14 +58,14 @@ interface PlaceMapProps {
 
 export default function PlaceMap({
   place,
-  nearby = [],
-  routePolyline = [],
-  routePlaces = [],
+  nearby = EMPTY_NEARBY_PLACES,
+  routePolyline = EMPTY_ROUTE_COORDINATES,
+  routePlaces = EMPTY_PLACES,
   catalogPlaces = [],
   catalogKind = 'attraction',
   selectedPlace = null,
   hotelAnchor = null,
-  routeSegments = [],
+  routeSegments = EMPTY_ROUTE_SEGMENTS,
   selectedLegId = null,
   onSelectLeg,
   onSelectTransitRoute,

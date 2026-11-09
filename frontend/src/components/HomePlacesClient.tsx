@@ -55,6 +55,8 @@ interface HomePlacesClientProps {
   availableDates: string[];
 }
 
+const EMPTY_ROUTE_PLACES: Place[] = [];
+
 function formatTripDateRange(startDate: string, endDate: string): string {
   const start = new Date(`${startDate}T00:00:00`);
   const end = new Date(`${endDate}T00:00:00`);
@@ -2204,7 +2206,7 @@ export function HomePlacesClient({
                       <PlaceMap
                         place={mapCenterPlace}
                         routeSegments={routeSegments}
-                        routePlaces={activeDay?.places || []}
+                        routePlaces={activeDay?.places ?? EMPTY_ROUTE_PLACES}
                         catalogPlaces={initialPlaces}
                         catalogKind={listCategory}
                         selectedPlace={selectedMapPlace}

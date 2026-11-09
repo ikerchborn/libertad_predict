@@ -1,6 +1,6 @@
 # Estructura y Funcionamiento del Sistema: Turismo La Libertad (Modular Monolith)
 
-Este documento describe la arquitectura **Modular Monolith** con capas hexagonales por módulo de negocio, los flujos de datos y el funcionamiento interno del sistema **Turismo La Libertad** (también disponible en [`docs/architecture.md`](file:///c:/Users/resan/Downloads/Development/worksalign/lalibertad_predict/docs/architecture.md) junto con el ADR en [`docs/adr/0001-modular-monolith-architecture.md`](file:///c:/Users/resan/Downloads/Development/worksalign/lalibertad_predict/docs/adr/0001-modular-monolith-architecture.md)).
+Este documento describe la arquitectura **Modular Monolith** con capas hexagonales por módulo de negocio, los flujos de datos y el funcionamiento interno del sistema **Turismo La Libertad** (también disponible en [docs/architecture.md](./docs/architecture.md) junto con el [ADR 0001](./docs/adr/0001-modular-monolith-architecture.md)).
 
 ---
 
@@ -68,14 +68,61 @@ lalibertad_predict/
 ├── tests/                                 # Espejo de src/ (tests/places, tests/scoring, tests/architecture...)
 └── frontend/
     └── src/
-        ├── features/                      # places, map, planner, calendar (cada uno autocontenido)
-        ├── shared/                        # componentes UI y cliente API comunes
-        └── app/                           # solo rutas (App Router)
+        ├── app/                           # Rutas Next.js, layouts y estilos globales
+        ├── components/                    # HomePlacesClient, PlaceMap, fichas y planificador
+        ├── hooks/                         # Estado/persistencia del viaje (useTripCache)
+        ├── lib/                           # API, tipos, OSRM, optimización y transporte
+        └── data/                          # Snapshot y adiciones de catálogo
 ```
 
 ---
 
-## 3. El Motor de Scoring Modular (`turismo.scoring`)
+## 3. Mapa Interactivo: Componentes, Datos y Flujo
+
+El mapa del planificador usa **Leaflet** y mosaicos de OpenStreetMap. Su lógica cartográfica reside en `frontend/src/components/PlaceMap.tsx`; el estado del viaje, la selección y la ficha viven en `frontend/src/components/HomePlacesClient.tsx`. La implementación es deliberadamente distinta del repositorio de referencia LibertadGO: el mapa de este sistema visualiza tramos calculados de caminata, transporte público y taxi, no solo una línea conectando destinos.
+
+### Archivos y responsabilidades
+
+| Archivo | Responsabilidad en el mapa |
+|---|---|
+| `frontend/src/components/HomePlacesClient.tsx` | Mantiene selección de lugar y transporte, día activo, filtro de categoría, crea los datos de ruta y muestra la ficha lateral. Pasa al mapa `routePlaces`, `routeSegments`, `catalogPlaces`, `catalogKind` y callbacks de selección. |
+| `frontend/src/components/PlaceMap.tsx` | Inicializa Leaflet, mosaicos, capas y marcadores; dibuja geometrías y etiquetas; responde a selección de lugar/tramo y ofrece controles de encuadre. |
+| `frontend/src/lib/transitService.ts` | Resuelve opciones de transporte, paraderos, caminatas de acceso y alternativa taxi cuando el acceso peatonal supera el umbral. |
+| `frontend/src/lib/osrmService.ts` | Solicita geometría vial a OSRM para perfil a pie o automóvil y devuelve una traza directa aproximada si OSRM falla. |
+| `frontend/src/hooks/useTripCache.ts` | Mantiene y persiste los viajes y días; `addPlaceToDay` evita agregar de nuevo una parada ya presente en el día. |
+| `frontend/src/app/globals.css` | Controla el tamaño responsivo del lienzo Leaflet, el foco de marcador, las etiquetas y la atenuación/ocultamiento de tramos no seleccionados. |
+| `frontend/src/data/places_snapshot.json` y `frontend/src/data/places_additions.json` | Snapshot de catálogo y registros complementarios que recibe el frontend. |
+
+### Flujo de datos
+
+1. `HomePlacesClient` obtiene el catálogo (`initialPlaces`) y el itinerario del día activo (`activeDay.places`).
+2. Al calcular el itinerario, usa `resolveTransitBetweenPlaces`/`getTransitBetweenPlaces` y `fetchOsrmRoute` para generar segmentos con tipo, coordenadas, color, código de línea, duración, tarifa y paraderos.
+3. Envía a `PlaceMap` el catálogo completo, el filtro `listCategory`, las paradas del día, los segmentos, el hospedaje base y las funciones callback.
+4. `PlaceMap` inicia Leaflet con `setView`, crea capas de lugares y de itinerario, dibuja las geometrías y ajusta la vista inicial. Para limitar el ruido, los marcadores adicionales del catálogo solo se muestran a 10 km o menos de alguna parada activa (o del lugar central si el día no tiene paradas).
+5. Al pulsar un marcador del catálogo o itinerario, `onSelectPlace` activa `handleMapPlaceSelect`; el cliente carga detalles mediante `fetchPlaceById` y presenta la ficha con el selector de viaje/día. La acción usa `addPlaceToDay` y no crea duplicados en el mismo día.
+6. Al pulsar una línea o pin de transporte, `onSelectTransitRoute` activa `handleMapTransitSelect` y muestra la ficha técnica del servicio. Seleccionar una caminata o un tramo cambia `selectedLegId`, atenúa otras geometrías y ajusta el mapa al tramo activo.
+
+### Tipos de marcadores y comportamiento
+
+- **Paradas del itinerario:** número en orden y pictograma según el tipo de lugar; al pulsarlas se abre la ficha del lugar.
+- **Catálogo seleccionable:** pictograma y color por categoría (`attraction`, `lodging`, `food`, `activity` o sin clasificar). El filtro de categoría actual controla qué iconos se dibujan; los lugares ya representados por marcadores principales o de itinerario se excluyen para reducir superposición.
+- **Lugar principal, lugares cercanos y hospedaje base:** marcadores diferenciados con acciones que abren la ficha de lugar.
+- **Transporte colectivo:** pines de abordaje/descenso y polilínea seleccionables que abren la ficha de la línea.
+- **Taxi:** los pines se presentan como punto de recojo y destino; la ficha usa tarifa estimada en rango, no una tarifa fija.
+- **Caminata:** indicador centrado en la geometría, con distancia y duración estimada; permite enfocar el tramo.
+- **Lugar seleccionado:** el mapa vuela a sus coordenadas y aplica un halo visual mediante la clase `map-place-focused`.
+
+Los marcadores de catálogo y los pines de lugares aceptan interacción por teclado. Los controles **Itinerario** y **Vista general** encuadran las paradas y segmentos del día activo o restauran la vista capturada al terminar la carga inicial, respectivamente. **Ampliar mapa** habilita la vista de pantalla completa; `ResizeObserver` invalida las dimensiones Leaflet al cambiar el tamaño.
+
+### Límites a tener en cuenta
+
+- Una geometría OSRM puede ser una ruta aproximada si el servicio público falla; la interfaz debe mantener esa distinción y no presentarla como una traza verificada.
+- La vista del catálogo es intencionalmente local al itinerario: los puntos que están a más de 10 km no aparecen como marcadores adicionales, aunque sigan disponibles en el catálogo y en la lista de lugares.
+- El mapa muestra rutas calculadas por la lógica de transporte disponible; no es una aplicación de navegación paso a paso ni garantiza tiempos, tarifas o disponibilidad actual del servicio.
+
+---
+
+## 4. El Motor de Scoring Modular (`turismo.scoring`)
 
 El motor calcula la conveniencia turística diaria (0 a 100) iterando sobre instancias que cumplen el contrato `ScoreFactor`:
 
@@ -91,7 +138,7 @@ $$\text{Score} = 100 \times \frac{\sum (w_i \times f_i)}{\sum w_i}$$
 
 ---
 
-## 4. Ciclo Operativo y Verificación
+## 5. Ciclo Operativo y Verificación
 
 ```powershell
 # Ejecutar linter, type-check estricto y tests (incluyendo contratos de arquitectura y golden test)

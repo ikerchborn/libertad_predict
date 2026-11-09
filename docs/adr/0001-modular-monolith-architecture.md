@@ -32,3 +32,12 @@ Reorganizar el sistema como un **Modular Monolith** orientado a contextos de neg
 
 - **Positivas**: Cada desarrollador trabaja aislado en su módulo (`places`, `scoring`, `weather`, `frontend/src/features/*`) reduciendo drásticamente los conflictos de merge; agregar un nuevo factor de scoring consiste únicamente en crear un archivo en `scoring/domain/factors/` y registrarlo en `DEFAULT_FACTORS`.
 - **Mitigación de riesgos**: La compatibilidad mediante fachadas de re-exportación evita romper integraciones previas durante la transición.
+
+## Nota de actualización (2026-11-09)
+
+La estructura frontend vigente está organizada en `frontend/src/app`, `components`,
+`hooks`, `lib` y `data`; la referencia histórica a `frontend/src/features/*` arriba
+no describe el árbol actualmente implementado. El mapa del planificador se detalla
+en [ESTRUCTURA_DEL_SISTEMA.md](../../ESTRUCTURA_DEL_SISTEMA.md) y
+[docs/architecture.md](../architecture.md). Los cambios grandes de producto y sus
+validaciones se registran en [CHANGELOG.md](../../CHANGELOG.md).

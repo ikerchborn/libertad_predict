@@ -122,8 +122,8 @@ const truxdiCandidatesCache = new Map<
   string,
   Array<{ transit: TransitOption; totalEstimatedMinutes: number }>
 >();
-const MAX_URBAN_WALK_TO_STOP_KM = 0.8;
-const MAX_UNVERIFIED_WALK_TO_STOP_KM = 0.8;
+const MAX_URBAN_WALK_TO_STOP_KM = 0.9;
+const MAX_UNVERIFIED_WALK_TO_STOP_KM = 0.9;
 
 export interface TransitOption {
   code: string;

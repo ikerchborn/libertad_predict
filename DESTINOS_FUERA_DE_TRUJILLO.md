@@ -7,6 +7,11 @@ Se incluyen los registros clasificados como atractivos turísticos (`kind: attra
 que están fuera del núcleo urbano de Trujillo. No se incluyen hoteles,
 restaurantes ni actividades comerciales.
 
+El catálogo también recibe adiciones en `frontend/src/data/places_additions.json`.
+Los cuatro atractivos de ese archivo (Iglesia San Francisco, Iglesia de La Merced,
+Iglesia San Agustín y Plazuela El Recreo) están en Trujillo ciudad y por eso no
+se suman a esta lista de destinos fuera del núcleo urbano.
+
 ## Huanchaco
 
 | Lugar | Dirección registrada |
@@ -55,7 +60,9 @@ restaurantes ni actividades comerciales.
 
 - **Total de atractivos fuera de Trujillo ciudad:** 14
 - **Destinos o zonas:** 6
-- **Fuente:** catálogo offline vigente del sistema, exportado el 6 de noviembre de 2026.
+- **Fuente:** catálogo offline (`places_snapshot.json`) y revisión del archivo de
+  adiciones vigente al 9 de noviembre de 2026. La lista fuera de Trujillo sigue
+  contando solo atractivos del snapshot cuya ubicación está fuera del núcleo urbano.
 
 > La clasificación geográfica se basa en el nombre, dirección y coordenadas
 > registradas en el catálogo. Chan Chan y Huanchaco pertenecen al entorno
